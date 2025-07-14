@@ -84,12 +84,6 @@ bool libcamera_control_id_is_input(libcamera_control_id_t *control);
 bool libcamera_control_id_is_output(libcamera_control_id_t *control);
 bool libcamera_control_id_is_array(libcamera_control_id_t *control);
 size_t libcamera_control_id_size(libcamera_control_id_t *control);
-size_t libcamera_control_id_enumerator_count(libcamera_control_id_t *control);
-const char *libcamera_control_id_enumerator_name(libcamera_control_id_t *control,int32_t value);
-int32_t libcamera_control_id_enumerator_value(libcamera_control_id_t *control, const char *name);
-size_t libcamera_control_id_enumerators_len(libcamera_control_id_t *control);
-int32_t libcamera_control_id_enumerators_key(libcamera_control_id_t *control, size_t index);
-const char *libcamera_control_id_enumerators_name_by_index(libcamera_control_id_t *control, size_t index);
 
 // --- libcamera_control_id_enumerators_iter_t ---
 libcamera_control_id_enumerators_iter_t *libcamera_control_id_enumerators_iter_create(libcamera_control_id_t *control);
