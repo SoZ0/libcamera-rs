@@ -219,7 +219,7 @@ impl core::fmt::Debug for StreamConfigurationRef<'_> {
 /// Handle to a camera stream.
 ///
 /// Obtained from [StreamConfigurationRef::stream()] and is valid as long as camera configuration is unchanged.
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub struct Stream {
     /// libcamera_stream_t is used as unique key across various libcamera structures
     /// and adding a lifetime would be really inconvenient. Dangling pointer should not

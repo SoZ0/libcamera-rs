@@ -486,6 +486,15 @@ pub struct ActiveCamera<'d> {
     state: Box<Mutex<ActiveCameraState<'d>>>,
 }
 
+/// Lightweight buffer completion event for channel delivery.
+#[derive(Debug, Clone, Copy)]
+pub struct BufferCompletedEvent {
+    pub stream: Stream,
+    pub request_cookie: u64,
+    pub request_sequence: u32,
+    pub buffer_ptr: usize,
+}
+
 impl<'d> ActiveCamera<'d> {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
         let mut state = Box::new(Mutex::new(ActiveCameraState::default()));
@@ -535,6 +544,35 @@ impl<'d> ActiveCamera<'d> {
                 libcamera_camera_buffer_completed_connect(self.ptr.as_ptr(), Some(camera_buffer_completed_cb), data)
             };
         }
+    }
+
+    /// Subscribe to request completed events via a channel (async-friendly).
+    ///
+    /// The returned receiver yields owned `Request`s as libcamera completes them.
+    pub fn subscribe_request_completed(&mut self) -> std::sync::mpsc::Receiver<Request> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.on_request_completed(move |req| {
+            let _ = tx.send(req);
+        });
+        rx
+    }
+
+    /// Subscribe to per-buffer completion events via a channel (async-friendly).
+    ///
+    /// The receiver yields lightweight `BufferCompletedEvent` snapshots; the underlying Request
+    /// remains owned by libcamera until requestCompleted fires.
+    pub fn subscribe_buffer_completed(&mut self) -> std::sync::mpsc::Receiver<BufferCompletedEvent> {
+        let (tx, rx) = std::sync::mpsc::channel();
+        self.on_buffer_completed(move |req, stream| {
+            let event = BufferCompletedEvent {
+                stream,
+                request_cookie: req.cookie(),
+                request_sequence: req.sequence(),
+                buffer_ptr: req.find_buffer(&stream).map_or(0, |p| p as usize),
+            };
+            let _ = tx.send(event);
+        });
+        rx
     }
 
     /// Sets a callback for camera disconnected events.
