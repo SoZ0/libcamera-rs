@@ -3,6 +3,7 @@ use std::{
     io,
     marker::PhantomData,
     ptr::NonNull,
+    sync::mpsc,
 };
 
 use libcamera_sys::*;
@@ -12,6 +13,14 @@ use crate::{camera::Camera, logging::LoggingLevel, utils::handle_result};
 struct ManagerCallbacks {
     added: Option<Box<dyn FnMut(Camera<'static>) + Send>>,
     removed: Option<Box<dyn FnMut(Camera<'static>) + Send>>,
+    hotplug_tx: Option<mpsc::Sender<HotplugEvent>>,
+}
+
+/// Hotplug event propagated via channel helper.
+#[derive(Debug, Clone)]
+pub enum HotplugEvent {
+    Added(String),
+    Removed(String),
 }
 
 /// Camera manager used to enumerate available cameras in the system.
@@ -30,7 +39,11 @@ impl CameraManager {
         handle_result(ret)?;
         Ok(CameraManager {
             ptr,
-            callbacks: Box::new(ManagerCallbacks { added: None, removed: None }),
+            callbacks: Box::new(ManagerCallbacks {
+                added: None,
+                removed: None,
+                hotplug_tx: None,
+            }),
             added_handle: core::ptr::null_mut(),
             removed_handle: core::ptr::null_mut(),
         })
@@ -64,6 +77,10 @@ impl CameraManager {
     }
 
     /// Register a callback for camera-added events.
+    ///
+    /// # Warning
+    /// The callback is invoked on libcamera's internal thread. Do not block in the callback; send work to another
+    /// thread/channel if needed.
     pub fn on_camera_added(&mut self, cb: impl FnMut(Camera<'static>) + Send + 'static) {
         self.callbacks.added = Some(Box::new(cb));
         if self.added_handle.is_null() {
@@ -79,6 +96,10 @@ impl CameraManager {
     }
 
     /// Register a callback for camera-removed events.
+    ///
+    /// # Warning
+    /// The callback is invoked on libcamera's internal thread. Do not block in the callback; send work to another
+    /// thread/channel if needed.
     pub fn on_camera_removed(&mut self, cb: impl FnMut(Camera<'static>) + Send + 'static) {
         self.callbacks.removed = Some(Box::new(cb));
         if self.removed_handle.is_null() {
@@ -91,6 +112,38 @@ impl CameraManager {
                 )
             };
         }
+    }
+
+    /// Subscribe to hotplug events via a channel.
+    ///
+    /// The returned `Receiver` yields `HotplugEvent` values. Internally this hooks into the libcamera hotplug signals
+    /// and forwards them; it uses the same callbacks as `on_camera_added/removed`, so do not mix different senders
+    /// without care.
+    pub fn subscribe_hotplug_events(&mut self) -> mpsc::Receiver<HotplugEvent> {
+        let (tx, rx) = mpsc::channel();
+        self.callbacks.hotplug_tx = Some(tx);
+        // Ensure signals are connected
+        if self.added_handle.is_null() {
+            let data = self.callbacks.as_mut() as *mut _ as *mut _;
+            self.added_handle = unsafe {
+                libcamera_camera_manager_camera_added_connect(
+                    self.ptr.as_ptr(),
+                    Some(camera_added_cb),
+                    data,
+                )
+            };
+        }
+        if self.removed_handle.is_null() {
+            let data = self.callbacks.as_mut() as *mut _ as *mut _;
+            self.removed_handle = unsafe {
+                libcamera_camera_manager_camera_removed_connect(
+                    self.ptr.as_ptr(),
+                    Some(camera_removed_cb),
+                    data,
+                )
+            };
+        }
+        rx
     }
 }
 
@@ -186,9 +239,12 @@ unsafe extern "C" fn camera_added_cb(data: *mut core::ffi::c_void, cam: *mut lib
     }
     // Safety: called from libcamera thread, user must ensure callbacks are Send-safe.
     let state = &mut *(data as *mut ManagerCallbacks);
-    if let Some(cb) = state.added.as_mut() {
-        if let Some(ptr) = NonNull::new(cam) {
+    if let Some(ptr) = NonNull::new(cam) {
+        if let Some(cb) = state.added.as_mut() {
             cb(unsafe { Camera::from_ptr(ptr) });
+        }
+        if let Some(tx) = state.hotplug_tx.as_ref() {
+            let _ = tx.send(HotplugEvent::Added(unsafe { Camera::from_ptr(ptr) }.id().to_string()));
         }
     }
 }
@@ -198,9 +254,12 @@ unsafe extern "C" fn camera_removed_cb(data: *mut core::ffi::c_void, cam: *mut l
         return;
     }
     let state = &mut *(data as *mut ManagerCallbacks);
-    if let Some(cb) = state.removed.as_mut() {
-        if let Some(ptr) = NonNull::new(cam) {
+    if let Some(ptr) = NonNull::new(cam) {
+        if let Some(cb) = state.removed.as_mut() {
             cb(unsafe { Camera::from_ptr(ptr) });
+        }
+        if let Some(tx) = state.hotplug_tx.as_ref() {
+            let _ = tx.send(HotplugEvent::Removed(unsafe { Camera::from_ptr(ptr) }.id().to_string()));
         }
     }
 }
