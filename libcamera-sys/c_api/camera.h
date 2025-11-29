@@ -5,6 +5,7 @@
 #include "request.h"
 #include "signal.h"
 #include "stream.h"
+#include "geometry.h"
 
 #include <stddef.h>
 
@@ -16,13 +17,36 @@ enum libcamera_camera_configuration_status {
 
 typedef void libcamera_request_completed_cb_t(void*, libcamera_request_t*);
 
+/* Mirror libcamera::Orientation (values start at 1 to match EXIF) */
+enum libcamera_orientation {
+    LIBCAMERA_ORIENTATION_ROTATE_0 = 1,
+    LIBCAMERA_ORIENTATION_ROTATE_0_MIRROR,
+    LIBCAMERA_ORIENTATION_ROTATE_180,
+    LIBCAMERA_ORIENTATION_ROTATE_180_MIRROR,
+    LIBCAMERA_ORIENTATION_ROTATE_90_MIRROR,
+    LIBCAMERA_ORIENTATION_ROTATE_270,
+    LIBCAMERA_ORIENTATION_ROTATE_270_MIRROR,
+    LIBCAMERA_ORIENTATION_ROTATE_90,
+};
+
 #ifdef __cplusplus
 #include <libcamera/camera.h>
+#include <libcamera/orientation.h>
 
 typedef libcamera::SensorConfiguration libcamera_sensor_configuration_t;
 typedef libcamera::CameraConfiguration libcamera_camera_configuration_t;
 typedef libcamera::CameraConfiguration::Status libcamera_camera_configuration_status_t;
 typedef std::shared_ptr<libcamera::Camera> libcamera_camera_t;
+typedef libcamera::Orientation libcamera_orientation_t;
+
+static_assert(static_cast<int>(libcamera::Orientation::Rotate0) == LIBCAMERA_ORIENTATION_ROTATE_0);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate0Mirror) == LIBCAMERA_ORIENTATION_ROTATE_0_MIRROR);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate180) == LIBCAMERA_ORIENTATION_ROTATE_180);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate180Mirror) == LIBCAMERA_ORIENTATION_ROTATE_180_MIRROR);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate90Mirror) == LIBCAMERA_ORIENTATION_ROTATE_90_MIRROR);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate270) == LIBCAMERA_ORIENTATION_ROTATE_270);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate270Mirror) == LIBCAMERA_ORIENTATION_ROTATE_270_MIRROR);
+static_assert(static_cast<int>(libcamera::Orientation::Rotate90) == LIBCAMERA_ORIENTATION_ROTATE_90);
 
 extern "C" {
 #else
@@ -30,12 +54,15 @@ typedef enum libcamera_camera_configuration_status libcamera_camera_configuratio
 typedef struct libcamera_camera_configuration_t libcamera_camera_configuration_t;
 typedef struct libcamera_sensor_configuration_t libcamera_sensor_configuration_t;
 typedef struct libcamera_camera_t libcamera_camera_t;
+typedef enum libcamera_orientation libcamera_orientation_t;
 #endif
 
 void libcamera_camera_configuration_destroy(libcamera_camera_configuration_t* config);
 size_t libcamera_camera_configuration_size(const libcamera_camera_configuration_t* config);
 libcamera_stream_configuration_t *libcamera_camera_configuration_at(libcamera_camera_configuration_t* config, size_t index);
 libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(libcamera_camera_configuration_t* config);
+libcamera_orientation_t libcamera_camera_configuration_get_orientation(const libcamera_camera_configuration_t* config);
+void libcamera_camera_configuration_set_orientation(libcamera_camera_configuration_t* config, libcamera_orientation_t orientation);
 
 libcamera_camera_t *libcamera_camera_copy(libcamera_camera_t *cam);
 void libcamera_camera_destroy(libcamera_camera_t *cam);
@@ -57,6 +84,9 @@ libcamera_sensor_configuration_t *libcamera_sensor_configuration_create();
 void libcamera_sensor_configuration_destroy(libcamera_sensor_configuration_t *config);
 void libcamera_sensor_configuration_set_bit_depth(libcamera_sensor_configuration_t *config, unsigned int bit_depth);
 void libcamera_sensor_configuration_set_output_size(libcamera_sensor_configuration_t *config, unsigned int width, unsigned int height);
+void libcamera_sensor_configuration_set_analog_crop(libcamera_sensor_configuration_t *config, const libcamera_rectangle_t *crop);
+void libcamera_sensor_configuration_set_binning(libcamera_sensor_configuration_t *config, unsigned int x, unsigned int y);
+void libcamera_sensor_configuration_set_skipping(libcamera_sensor_configuration_t *config, unsigned int x_odd_inc, unsigned int x_even_inc, unsigned int y_odd_inc, unsigned int y_even_inc);
 void libcamera_camera_set_sensor_configuration(libcamera_camera_configuration_t *config, const libcamera_sensor_configuration_t *sensor_config);
 
 #ifdef __cplusplus

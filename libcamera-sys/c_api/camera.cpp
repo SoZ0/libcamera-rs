@@ -22,6 +22,14 @@ libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(
     return config->validate();
 }
 
+libcamera_orientation_t libcamera_camera_configuration_get_orientation(const libcamera_camera_configuration_t* config) {
+    return config->orientation;
+}
+
+void libcamera_camera_configuration_set_orientation(libcamera_camera_configuration_t* config, libcamera_orientation_t orientation) {
+    config->orientation = orientation;
+}
+
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {
     const libcamera_camera_t& ptr = *cam;
     return new libcamera_camera_t(ptr);
@@ -104,6 +112,25 @@ void libcamera_sensor_configuration_set_bit_depth(libcamera_sensor_configuration
 void libcamera_sensor_configuration_set_output_size(libcamera_sensor_configuration_t *config, unsigned int width, unsigned int height)
 {
     config->outputSize = libcamera::Size(width, height);
+}
+
+void libcamera_sensor_configuration_set_analog_crop(libcamera_sensor_configuration_t *config, const libcamera_rectangle_t *crop)
+{
+    config->analogCrop = *crop;
+}
+
+void libcamera_sensor_configuration_set_binning(libcamera_sensor_configuration_t *config, unsigned int x, unsigned int y)
+{
+    config->binning.binX = x;
+    config->binning.binY = y;
+}
+
+void libcamera_sensor_configuration_set_skipping(libcamera_sensor_configuration_t *config, unsigned int x_odd_inc, unsigned int x_even_inc, unsigned int y_odd_inc, unsigned int y_even_inc)
+{
+    config->skipping.xOddInc = x_odd_inc;
+    config->skipping.xEvenInc = x_even_inc;
+    config->skipping.yOddInc = y_odd_inc;
+    config->skipping.yEvenInc = y_even_inc;
 }
 
 void libcamera_camera_set_sensor_configuration(libcamera_camera_configuration_t *config, const libcamera_sensor_configuration_t *sensor_config)

@@ -12,6 +12,7 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMap, ControlList, PropertyList},
+    geometry::Rectangle,
     request::Request,
     stream::{StreamConfigurationRef, StreamRole},
     utils::Immutable,
@@ -55,6 +56,52 @@ impl TryFrom<libcamera_camera_configuration_status_t> for CameraConfigurationSta
     }
 }
 
+/// Desired orientation of the captured image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Orientation {
+    Rotate0,
+    Rotate0Mirror,
+    Rotate180,
+    Rotate180Mirror,
+    Rotate90Mirror,
+    Rotate270,
+    Rotate270Mirror,
+    Rotate90,
+}
+
+impl TryFrom<libcamera_orientation_t> for Orientation {
+    type Error = ();
+
+    fn try_from(value: libcamera_orientation_t) -> Result<Self, Self::Error> {
+        match value {
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_0 => Ok(Self::Rotate0),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_0_MIRROR => Ok(Self::Rotate0Mirror),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_180 => Ok(Self::Rotate180),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_180_MIRROR => Ok(Self::Rotate180Mirror),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_90_MIRROR => Ok(Self::Rotate90Mirror),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_270 => Ok(Self::Rotate270),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_270_MIRROR => Ok(Self::Rotate270Mirror),
+            libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_90 => Ok(Self::Rotate90),
+            _ => Err(()),
+        }
+    }
+}
+
+impl From<Orientation> for libcamera_orientation_t {
+    fn from(value: Orientation) -> Self {
+        match value {
+            Orientation::Rotate0 => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_0,
+            Orientation::Rotate0Mirror => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_0_MIRROR,
+            Orientation::Rotate180 => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_180,
+            Orientation::Rotate180Mirror => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_180_MIRROR,
+            Orientation::Rotate90Mirror => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_90_MIRROR,
+            Orientation::Rotate270 => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_270,
+            Orientation::Rotate270Mirror => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_270_MIRROR,
+            Orientation::Rotate90 => libcamera_orientation::LIBCAMERA_ORIENTATION_ROTATE_90,
+        }
+    }
+}
+
 pub struct SensorConfiguration {
     item: NonNull<libcamera_sensor_configuration_t>,
 }
@@ -75,6 +122,19 @@ impl SensorConfiguration {
 
     pub fn set_output_size(&mut self, width: u32, height: u32) {
         unsafe { libcamera_sensor_configuration_set_output_size(self.item.as_ptr(), width, height) }
+    }
+
+    pub fn set_analog_crop(&mut self, crop: Rectangle) {
+        let rect: libcamera_rectangle_t = crop.into();
+        unsafe { libcamera_sensor_configuration_set_analog_crop(self.item.as_ptr(), &rect) }
+    }
+
+    pub fn set_binning(&mut self, x: u32, y: u32) {
+        unsafe { libcamera_sensor_configuration_set_binning(self.item.as_ptr(), x, y) }
+    }
+
+    pub fn set_skipping(&mut self, x_odd: u32, x_even: u32, y_odd: u32, y_even: u32) {
+        unsafe { libcamera_sensor_configuration_set_skipping(self.item.as_ptr(), x_odd, x_even, y_odd, y_even) }
     }
 }
 
@@ -141,6 +201,18 @@ impl CameraConfiguration {
         unsafe { libcamera_camera_configuration_validate(self.ptr.as_ptr()) }
             .try_into()
             .unwrap()
+    }
+
+    /// Returns the desired orientation of the captured image.
+    pub fn orientation(&self) -> Orientation {
+        unsafe { libcamera_camera_configuration_get_orientation(self.ptr.as_ptr()) }
+            .try_into()
+            .unwrap()
+    }
+
+    /// Sets the desired orientation of the captured image.
+    pub fn set_orientation(&mut self, orientation: Orientation) {
+        unsafe { libcamera_camera_configuration_set_orientation(self.ptr.as_ptr(), orientation.into()) }
     }
 
     /// Re-validate and print stride/frame_size adjustments for each stream (helper for debugging).
