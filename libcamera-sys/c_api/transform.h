@@ -1,7 +1,10 @@
 #ifndef __LIBCAMERA_C_TRANSFORM__
 #define __LIBCAMERA_C_TRANSFORM__
 
+#include <stdbool.h>
 #include <stdint.h>
+
+#include "camera.h"
 
 struct libcamera_transform {
     uint32_t value;

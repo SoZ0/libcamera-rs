@@ -1,8 +1,6 @@
 //! Demonstrates using acquire fences when queuing requests and releasing fences from framebuffers.
 use std::{os::fd::AsRawFd, time::Duration};
 
-use libc::{poll, pollfd, POLLIN};
-
 use libcamera::{
     camera_manager::CameraManager,
     fence::Fence,
