@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::{
     control_value::{ControlType, ControlValue, ControlValueError},
-    controls::{self, ControlId},
+    controls::{self, ControlId, ControlIdMap},
     properties::{self, PropertyId},
     utils::{UniquePtr, UniquePtrTarget},
 };
@@ -258,6 +258,16 @@ impl ControlList {
             let ptr = libcamera_control_list_info_map(self.ptr());
             NonNull::new(ptr.cast_mut()).map(|p| {
                 let m: &mut ControlInfoMap = ControlInfoMap::from_ptr(p);
+                &*m
+            })
+        }
+    }
+
+    pub fn id_map(&self) -> Option<&ControlIdMap> {
+        unsafe {
+            let ptr = libcamera_control_list_id_map(self.ptr());
+            NonNull::new(ptr.cast_mut()).map(|p| {
+                let m: &mut ControlIdMap = ControlIdMap::from_ptr(p);
                 &*m
             })
         }
