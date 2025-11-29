@@ -94,7 +94,7 @@ impl Request {
         let ret =
             unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             self.buffers.insert(*stream, Box::new(buffer));
             Ok(())
@@ -113,7 +113,7 @@ impl Request {
             libcamera_request_add_buffer_with_fence(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr(), fd)
         };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             self.buffers.insert(*stream, Box::new(buffer));
             Ok(())

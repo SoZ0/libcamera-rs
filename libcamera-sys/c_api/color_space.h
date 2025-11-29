@@ -61,8 +61,8 @@ libcamera_color_space_t libcamera_color_space_rec709();
 libcamera_color_space_t libcamera_color_space_rec2020();
 /// Converts ColorSpace to string (std::string::c_str())
 char *libcamera_color_space_to_string(const libcamera_color_space_t *color_space);
-/// Convert string to ColorSpace; returns ColorSpace::Raw on failure.
-libcamera_color_space_t libcamera_color_space_from_string(const char *str);
+/// Convert string to ColorSpace; returns true on success and writes result.
+bool libcamera_color_space_from_string(const char *str, libcamera_color_space_t *out);
 /// Adjust color space to a pixel format; returns true if adjusted/valid.
 bool libcamera_color_space_adjust(libcamera_color_space_t *color_space, const libcamera_pixel_format_t *pixel_format);
 

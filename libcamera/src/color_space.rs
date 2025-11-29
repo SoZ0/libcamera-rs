@@ -94,13 +94,17 @@ impl ColorSpace {
     /// Parse color space from libcamera string representation. Returns None on failure.
     pub fn from_string(s: &str) -> Option<Self> {
         let cstr = CString::new(s).ok()?;
-        let cs = unsafe { libcamera_color_space_from_string(cstr.as_ptr()) };
-        let cs = ColorSpace::from(cs);
-        // libcamera::ColorSpace::Raw is a valid fallback; to detect failure, re-stringify and compare.
-        if cs.to_repr().is_empty() {
-            None
+        let mut cs = libcamera_color_space_t {
+            primaries: libcamera_color_space_primaries::LIBCAMERA_COLOR_SPACE_PRIMARIES_RAW,
+            transfer_function: libcamera_color_space_transfer_function::LIBCAMERA_COLOR_SPACE_TRANSFER_FUNCTION_LINEAR,
+            ycbcr_encoding: libcamera_color_space_ycbcr_encoding::LIBCAMERA_COLOR_SPACE_YCBCR_ENCODING_NONE,
+            range: libcamera_color_space_range::LIBCAMERA_COLOR_SPACE_RANGE_FULL,
+        };
+        let ok = unsafe { libcamera_color_space_from_string(cstr.as_ptr(), &mut cs) };
+        if ok {
+            Some(ColorSpace::from(cs))
         } else {
-            Some(cs)
+            None
         }
     }
 

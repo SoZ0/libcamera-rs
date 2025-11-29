@@ -1,4 +1,5 @@
 use libcamera_sys::*;
+use crate::camera::Orientation;
 
 /// 2D plane transform matching libcamera::Transform.
 #[derive(Clone, Copy, Debug)]
@@ -45,4 +46,15 @@ impl std::fmt::Display for Transform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_str(&self.to_string_repr())
     }
+}
+
+impl Transform {
+    /// Compute the transform between two orientations (equivalent to libcamera Orientation division).
+    pub fn between_orientations(from: Orientation, to: Orientation) -> Self {
+        Transform(unsafe { libcamera_transform_between_orientations(from.into(), to.into()) })
+    }
+}
+
+pub fn apply_transform_to_orientation(orientation: Orientation, transform: Transform) -> Orientation {
+    unsafe { libcamera_transform_apply_orientation(orientation.into(), transform.0).try_into().unwrap() }
 }

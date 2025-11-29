@@ -34,4 +34,12 @@ char *libcamera_transform_to_string(libcamera_transform_t transform) {
     return ::strdup(libcamera::transformToString(transform));
 }
 
+libcamera_transform_t libcamera_transform_between_orientations(libcamera_orientation_t from, libcamera_orientation_t to) {
+    return from / to;
+}
+
+libcamera_orientation_t libcamera_transform_apply_orientation(libcamera_orientation_t orientation, libcamera_transform_t transform) {
+    return orientation * transform;
+}
+
 }

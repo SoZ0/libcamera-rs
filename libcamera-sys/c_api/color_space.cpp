@@ -47,12 +47,15 @@ char *libcamera_color_space_to_string(const libcamera_color_space_t *color_space
     return strdup(color_space->toString().c_str());
 }
 
-libcamera_color_space_t libcamera_color_space_from_string(const char *str) {
-    if (!str) {
-        return libcamera::ColorSpace::Raw;
+bool libcamera_color_space_from_string(const char *str, libcamera_color_space_t *out) {
+    if (!str || !out) {
+        return false;
     }
     auto cs = libcamera::ColorSpace::fromString(std::string(str));
-    return cs.value_or(libcamera::ColorSpace::Raw);
+    if (!cs.has_value())
+        return false;
+    *out = cs.value();
+    return true;
 }
 
 bool libcamera_color_space_adjust(libcamera_color_space_t *color_space, const libcamera_pixel_format_t *pixel_format) {

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::mem::MaybeUninit;
 
 use thiserror::Error;
 
@@ -54,7 +55,14 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
 
             // Find total FD length if not known yet
             map_info.entry(fd).or_insert_with(|| {
-                let total_len = unsafe { libc::lseek64(fd, 0, libc::SEEK_END) } as usize;
+                let mut st = MaybeUninit::<libc::stat>::uninit();
+                let ret = unsafe { libc::fstat(fd, st.as_mut_ptr()) };
+                let total_len = if ret != 0 {
+                    0
+                } else {
+                    let st = unsafe { st.assume_init() };
+                    st.st_size as usize
+                };
                 MapInfo {
                     mapped_len: 0,
                     total_len,
@@ -63,7 +71,7 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
 
             let info = map_info.get_mut(&fd).unwrap();
 
-            if offset + len > info.total_len {
+            if info.total_len == 0 || offset + len > info.total_len {
                 return Err(MemoryMappedFrameBufferError::PlaneOutOfBounds {
                     index,
                     offset,

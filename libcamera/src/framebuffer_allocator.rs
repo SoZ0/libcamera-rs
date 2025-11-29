@@ -53,7 +53,7 @@ impl FrameBufferAllocator {
 
         let ret = unsafe { libcamera_framebuffer_allocator_allocate(inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             inner.allocated_streams.push(stream.ptr);
 
@@ -90,7 +90,7 @@ impl FrameBufferAllocator {
         let mut inner = self.inner.lock().unwrap();
         let ret = unsafe { libcamera_framebuffer_allocator_free(inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             inner.allocated_streams.retain(|s| s != &stream.ptr);
             Ok(())

@@ -247,11 +247,19 @@ unsafe extern "C" fn camera_added_cb(data: *mut core::ffi::c_void, cam: *mut lib
     // Safety: called from libcamera thread, user must ensure callbacks are Send-safe.
     let state = &mut *(data as *mut ManagerCallbacks);
     if let Some(ptr) = NonNull::new(cam) {
-        if let Some(cb) = state.added.as_mut() {
-            cb(unsafe { Camera::from_ptr(ptr) });
-        }
-        if let Some(tx) = state.hotplug_tx.as_ref() {
-            let _ = tx.send(HotplugEvent::Added(unsafe { Camera::from_ptr(ptr) }.id().to_string()));
+        // Clone shared_ptr once to avoid double-drop when used by multiple consumers.
+        let cam_copy = unsafe { libcamera_camera_copy(ptr.as_ptr()) };
+        if let Some(copy_ptr) = NonNull::new(cam_copy) {
+            let cam = unsafe { Camera::from_ptr(copy_ptr) };
+            let cam_id = cam.id().to_string();
+            if let Some(cb) = state.added.as_mut() {
+                cb(cam);
+            } else {
+                drop(cam);
+            }
+            if let Some(tx) = state.hotplug_tx.as_ref() {
+                let _ = tx.send(HotplugEvent::Added(cam_id));
+            }
         }
     }
 }
@@ -262,11 +270,18 @@ unsafe extern "C" fn camera_removed_cb(data: *mut core::ffi::c_void, cam: *mut l
     }
     let state = &mut *(data as *mut ManagerCallbacks);
     if let Some(ptr) = NonNull::new(cam) {
-        if let Some(cb) = state.removed.as_mut() {
-            cb(unsafe { Camera::from_ptr(ptr) });
-        }
-        if let Some(tx) = state.hotplug_tx.as_ref() {
-            let _ = tx.send(HotplugEvent::Removed(unsafe { Camera::from_ptr(ptr) }.id().to_string()));
+        let cam_copy = unsafe { libcamera_camera_copy(ptr.as_ptr()) };
+        if let Some(copy_ptr) = NonNull::new(cam_copy) {
+            let cam = unsafe { Camera::from_ptr(copy_ptr) };
+            let cam_id = cam.id().to_string();
+            if let Some(cb) = state.removed.as_mut() {
+                cb(cam);
+            } else {
+                drop(cam);
+            }
+            if let Some(tx) = state.hotplug_tx.as_ref() {
+                let _ = tx.send(HotplugEvent::Removed(cam_id));
+            }
         }
     }
 }

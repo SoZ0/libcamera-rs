@@ -94,7 +94,7 @@ impl<T: UniquePtrTarget + core::fmt::Debug> core::fmt::Debug for UniquePtr<T> {
 #[inline]
 pub fn handle_result(ret: c_int) -> io::Result<()> {
     if ret < 0 {
-        Err(io::Error::from_raw_os_error(ret))
+        Err(io::Error::from_raw_os_error(-ret))
     } else {
         Ok(())
     }

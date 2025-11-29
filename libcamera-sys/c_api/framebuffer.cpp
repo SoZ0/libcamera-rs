@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <libcamera/base/shared_fd.h>
+#include <unistd.h>
 
 extern "C" {
 
@@ -91,7 +92,10 @@ int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer) {
     auto fence = framebuffer->releaseFence();
     if (!fence)
         return -1;
-    return fence->fd().get();
+    int fd = fence->fd().get();
+    if (fd < 0)
+        return -1;
+    return ::dup(fd);
 }
 
 libcamera_request_t *libcamera_framebuffer_request(const libcamera_framebuffer_t *framebuffer) {

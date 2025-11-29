@@ -380,7 +380,7 @@ impl<'d> Camera<'d> {
     pub fn acquire(&self) -> io::Result<ActiveCamera<'d>> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             Ok(unsafe { ActiveCamera::from_ptr(NonNull::new(libcamera_camera_copy(self.ptr.as_ptr())).unwrap()) })
         }
@@ -541,7 +541,7 @@ impl<'d> ActiveCamera<'d> {
     pub fn configure(&mut self, config: &mut CameraConfiguration) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_configure(self.ptr.as_ptr(), config.ptr.as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             Ok(())
         }
@@ -572,7 +572,7 @@ impl<'d> ActiveCamera<'d> {
         let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), ptr) };
 
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             Ok(())
         }
@@ -585,7 +585,7 @@ impl<'d> ActiveCamera<'d> {
         let ctrl_ptr = controls.map(|c| c.ptr()).unwrap_or(core::ptr::null_mut());
         let ret = unsafe { libcamera_camera_start(self.ptr.as_ptr(), ctrl_ptr) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             Ok(())
         }
@@ -597,7 +597,7 @@ impl<'d> ActiveCamera<'d> {
     pub fn stop(&mut self) -> io::Result<()> {
         let ret = unsafe { libcamera_camera_stop(self.ptr.as_ptr()) };
         if ret < 0 {
-            Err(io::Error::from_raw_os_error(ret))
+            Err(io::Error::from_raw_os_error(-ret))
         } else {
             Ok(())
         }
