@@ -6,6 +6,8 @@
 enum libcamera_logging_target {
     LIBCAMERA_LOGGING_TARGET_NONE,
     LIBCAMERA_LOGGING_TARGET_SYSLOG,
+    LIBCAMERA_LOGGING_TARGET_FILE,
+    LIBCAMERA_LOGGING_TARGET_STREAM,
 };
 
 enum libcamera_logging_stream {

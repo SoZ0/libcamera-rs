@@ -12,6 +12,7 @@ use crate::utils::handle_result;
 pub enum LoggingTarget {
     None,
     Syslog,
+    File,
     Stream,
 }
 
@@ -20,7 +21,8 @@ impl From<LoggingTarget> for libcamera_logging_target_t {
         match value {
             LoggingTarget::None => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_NONE,
             LoggingTarget::Syslog => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_SYSLOG,
-            LoggingTarget::Stream => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_SYSLOG, // Stream target is selected by log_set_stream
+            LoggingTarget::File => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_FILE,
+            LoggingTarget::Stream => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_STREAM,
         }
     }
 }
