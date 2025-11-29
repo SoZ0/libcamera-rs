@@ -3,6 +3,42 @@ use std::{ffi::CStr, ptr::NonNull, str::FromStr};
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ColourEncoding {
+    Rgb,
+    Yuv,
+    Raw,
+    Unknown(u32),
+}
+
+impl From<u32> for ColourEncoding {
+    fn from(v: u32) -> Self {
+        match v {
+            0 => ColourEncoding::Rgb,
+            1 => ColourEncoding::Yuv,
+            2 => ColourEncoding::Raw,
+            other => ColourEncoding::Unknown(other),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct PixelFormatPlaneInfo {
+    pub bytes_per_group: u32,
+    pub vertical_sub_sampling: u32,
+}
+
+#[derive(Debug, Clone)]
+pub struct PixelFormatInfo {
+    pub name: String,
+    pub format: PixelFormat,
+    pub bits_per_pixel: u32,
+    pub colour_encoding: ColourEncoding,
+    pub packed: bool,
+    pub pixels_per_group: u32,
+    pub planes: Vec<PixelFormatPlaneInfo>,
+}
+
 /// Represents `libcamera::PixelFormat`, which itself is a pair of fourcc code and u64 modifier as defined in `libdrm`.
 #[derive(Clone, Copy)]
 pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
@@ -63,6 +99,42 @@ impl PixelFormat {
     /// Returns true if the PixelFormat represents a valid libcamera format.
     pub fn is_valid(&self) -> bool {
         unsafe { libcamera_pixel_format_is_valid(&self.0) }
+    }
+
+    pub fn info(&self) -> Option<PixelFormatInfo> {
+        let mut out = libcamera_pixel_format_info_t {
+            name: core::ptr::null(),
+            format: self.0,
+            bits_per_pixel: 0,
+            colour_encoding: 0,
+            packed: false,
+            pixels_per_group: 0,
+            planes: [libcamera_pixel_format_info__bindgen_ty_1 {
+                bytes_per_group: 0,
+                vertical_sub_sampling: 0,
+            }; 3],
+            num_planes: 0,
+        };
+        let ok = unsafe { libcamera_pixel_format_info(&self.0, &mut out as *mut _) };
+        if !ok {
+            return None;
+        }
+        let name = unsafe { CStr::from_ptr(out.name) }.to_string_lossy().into_owned();
+        let planes = (0..out.num_planes as usize)
+            .map(|i| PixelFormatPlaneInfo {
+                bytes_per_group: out.planes[i].bytes_per_group,
+                vertical_sub_sampling: out.planes[i].vertical_sub_sampling,
+            })
+            .collect();
+        Some(PixelFormatInfo {
+            name,
+            format: PixelFormat(out.format),
+            bits_per_pixel: out.bits_per_pixel,
+            colour_encoding: out.colour_encoding.into(),
+            packed: out.packed,
+            pixels_per_group: out.pixels_per_group,
+            planes,
+        })
     }
 }
 

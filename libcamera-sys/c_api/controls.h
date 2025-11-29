@@ -43,10 +43,9 @@ typedef struct libcamera_control_id libcamera_control_id_t;
 typedef struct libcamera_control_info libcamera_control_info_t;
 typedef struct libcamera_control_id_map libcamera_control_id_map_t;
 typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
+typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
 
 #endif
-
-typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
 
 enum libcamera_control_id_enum { libcamera_control_id_DUMMY };
 enum libcamera_property_id { libcamera_property_id_DUMMY };
@@ -97,6 +96,14 @@ int32_t libcamera_control_id_enumerators_iter_key(const libcamera_control_id_enu
 const char *libcamera_control_id_enumerators_iter_value(const libcamera_control_id_enumerators_iter_t *iter);
 void libcamera_control_id_enumerators_iter_next(libcamera_control_id_enumerators_iter_t *iter);
 void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerators_iter_t *iter);
+// --- libcamera_control_id_map_iter_t ---
+typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
+libcamera_control_id_map_iter_t *libcamera_control_id_map_iter_create(const libcamera_control_id_map_t *map);
+bool libcamera_control_id_map_iter_has_next(const libcamera_control_id_map_iter_t *iter);
+unsigned int libcamera_control_id_map_iter_key(const libcamera_control_id_map_iter_t *iter);
+const libcamera_control_id_t *libcamera_control_id_map_iter_value(const libcamera_control_id_map_iter_t *iter);
+void libcamera_control_id_map_iter_next(libcamera_control_id_map_iter_t *iter);
+void libcamera_control_id_map_iter_destroy(libcamera_control_id_map_iter_t *iter);
 
 // --- libcamera_property_id ---
 const char *libcamera_property_name_from_id(enum libcamera_property_id id);
@@ -104,6 +111,7 @@ enum libcamera_control_type libcamera_property_type_from_id(enum libcamera_prope
 
 // --- libcamera_control_list_t ---
 libcamera_control_list_t *libcamera_control_list_create();
+libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcamera_control_id_map_t *idmap);
 void libcamera_control_list_destroy(libcamera_control_list_t *list);
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
 void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);

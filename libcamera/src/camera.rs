@@ -226,6 +226,20 @@ impl CameraConfiguration {
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
     }
 
+    /// Append a new stream configuration by cloning an existing configuration.
+    ///
+    /// This mirrors libcamera's `addConfiguration(const StreamConfiguration&)` and produces
+    /// a valid entry instead of an empty placeholder, allowing multi-stream configurations
+    /// to validate successfully.
+    pub fn add_configuration_like(
+        &mut self,
+        template: &StreamConfigurationRef<'_>,
+    ) -> Option<StreamConfigurationRef<'_>> {
+        let ptr =
+            unsafe { libcamera_camera_configuration_add_configuration_from(self.ptr.as_ptr(), template.ptr.as_ptr()) };
+        NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
+    }
+
     pub fn set_sensor_configuration(&mut self, mode: SensorConfiguration) {
         unsafe { libcamera_camera_set_sensor_configuration(self.ptr.as_ptr(), mode.item.as_ptr()) }
     }

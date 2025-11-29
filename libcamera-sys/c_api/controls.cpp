@@ -3,6 +3,17 @@
 #include <libcamera/libcamera.h>
 #include <string.h>
 
+struct libcamera_control_id_enumerators_iter {
+    std::map<int32_t, std::string>::const_iterator current;
+    std::map<int32_t, std::string>::const_iterator end;
+};
+
+struct libcamera_control_id_map_iter {
+    const libcamera_control_id_map_t *map;
+    libcamera_control_id_map_t::const_iterator current;
+    libcamera_control_id_map_t::const_iterator end;
+};
+
 extern "C" {
 
 enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *control){
@@ -82,6 +93,44 @@ void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerat
     delete iter;
 }
 
+libcamera_control_id_map_iter_t *libcamera_control_id_map_iter_create(const libcamera_control_id_map_t *map) {
+    if (!map)
+        return nullptr;
+    auto iter = new libcamera_control_id_map_iter_t();
+    iter->map = map;
+    iter->current = map->begin();
+    iter->end = map->end();
+    return iter;
+}
+
+bool libcamera_control_id_map_iter_has_next(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter)
+        return false;
+    return iter->current != iter->end;
+}
+
+unsigned int libcamera_control_id_map_iter_key(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return 0;
+    return iter->current->first;
+}
+
+const libcamera_control_id_t *libcamera_control_id_map_iter_value(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return nullptr;
+    return iter->current->second;
+}
+
+void libcamera_control_id_map_iter_next(libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return;
+    ++(iter->current);
+}
+
+void libcamera_control_id_map_iter_destroy(libcamera_control_id_map_iter_t *iter) {
+    delete iter;
+}
+
 
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id){
      auto it = libcamera::controls::controls.find(id);
@@ -125,6 +174,12 @@ enum libcamera_control_type libcamera_property_type_from_id(enum libcamera_prope
 
 libcamera_control_list_t *libcamera_control_list_create() {
     return new libcamera::ControlList();
+}
+
+libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcamera_control_id_map_t *idmap) {
+    if (!idmap)
+        return nullptr;
+    return new libcamera::ControlList(*idmap);
 }
 
 void libcamera_control_list_destroy(libcamera_control_list_t *list) {

@@ -55,6 +55,59 @@ impl ControlIdMap {
     pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_id_map_t>) -> &'a mut Self {
         &mut *(ptr.as_ptr() as *mut Self)
     }
+
+    pub fn iter(&self) -> Option<ControlIdMapIter<'_>> {
+        ControlIdMapIter::new(self)
+    }
+
+    pub(crate) fn ptr(&self) -> *const libcamera_control_id_map_t {
+        &self.0 as *const libcamera_control_id_map_t
+    }
+}
+
+#[derive(Clone, Copy)]
+pub struct ControlIdRef {
+    ptr: NonNull<libcamera_control_id_t>,
+}
+
+impl ControlIdRef {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_control_id_t>) -> Self {
+        Self { ptr }
+    }
+
+    pub fn id(&self) -> u32 {
+        unsafe { libcamera_control_id(self.ptr.as_ptr()) as u32 }
+    }
+
+    pub fn name(&self) -> &str {
+        unsafe {
+            CStr::from_ptr(libcamera_control_name(self.ptr.as_ptr()))
+                .to_str()
+                .unwrap()
+        }
+    }
+
+    pub fn vendor(&self) -> &str {
+        unsafe {
+            CStr::from_ptr(libcamera_control_id_vendor(self.ptr.as_ptr()))
+                .to_str()
+                .unwrap()
+        }
+    }
+
+    pub fn ty(&self) -> ControlType {
+        unsafe { libcamera_control_id_type(self.ptr.as_ptr()) }
+            .try_into()
+            .unwrap_or(ControlType::None)
+    }
+
+    pub fn is_array(&self) -> bool {
+        unsafe { libcamera_control_id_is_array(self.ptr.as_ptr()) }
+    }
+
+    pub fn size(&self) -> usize {
+        unsafe { libcamera_control_id_size(self.ptr.as_ptr()) }
+    }
 }
 
 impl ControlInfo {
@@ -230,6 +283,13 @@ impl UniquePtrTarget for ControlList {
 impl ControlList {
     pub fn new() -> UniquePtr<Self> {
         UniquePtr::new()
+    }
+
+    pub fn from_id_map(map: &ControlIdMap) -> Option<UniquePtr<Self>> {
+        unsafe {
+            let ptr = libcamera_control_list_create_with_idmap(map.ptr());
+            NonNull::new(ptr).map(|p| UniquePtr::from_raw(p as *mut Self))
+        }
     }
 
     pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_list_t>) -> &'a mut Self {
@@ -562,6 +622,52 @@ impl Drop for ControlIdEnumeratorsIter<'_> {
     fn drop(&mut self) {
         unsafe {
             libcamera_control_id_enumerators_iter_destroy(self.iter);
+        }
+    }
+}
+
+pub struct ControlIdMapIter<'a> {
+    iter: *mut libcamera_control_id_map_iter_t,
+    marker: PhantomData<&'a ControlIdMap>,
+}
+
+impl<'a> ControlIdMapIter<'a> {
+    fn new(map: &'a ControlIdMap) -> Option<Self> {
+        unsafe {
+            let iter = libcamera_control_id_map_iter_create(map.ptr());
+            if iter.is_null() {
+                None
+            } else {
+                Some(Self {
+                    iter,
+                    marker: PhantomData,
+                })
+            }
+        }
+    }
+}
+
+impl<'a> Iterator for ControlIdMapIter<'a> {
+    type Item = (u32, ControlIdRef);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        unsafe {
+            if libcamera_control_id_map_iter_has_next(self.iter) {
+                let key = libcamera_control_id_map_iter_key(self.iter);
+                let id_ptr = libcamera_control_id_map_iter_value(self.iter);
+                libcamera_control_id_map_iter_next(self.iter);
+                NonNull::new(id_ptr.cast_mut()).map(|p| (key, ControlIdRef::from_ptr(p)))
+            } else {
+                None
+            }
+        }
+    }
+}
+
+impl Drop for ControlIdMapIter<'_> {
+    fn drop(&mut self) {
+        unsafe {
+            libcamera_control_id_map_iter_destroy(self.iter);
         }
     }
 }

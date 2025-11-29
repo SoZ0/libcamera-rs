@@ -261,6 +261,11 @@ impl Request {
     /// via [Self::add_buffer()] by setting flags to [ReuseFlag::REUSE_BUFFERS].
     pub fn reuse(&mut self, flags: ReuseFlag) {
         unsafe { libcamera_request_reuse(self.ptr.as_ptr(), flags.bits()) }
+        // Mirror libcamera behaviour: unless REUSE_BUFFERS is set, drop our buffer map so callbacks
+        // and buffer() lookups can't return stale handles.
+        if !flags.contains(ReuseFlag::REUSE_BUFFERS) {
+            self.buffers.clear();
+        }
     }
 }
 

@@ -52,6 +52,18 @@ libcamera_stream_configuration_t *libcamera_camera_configuration_add_configurati
     return &config->at(config->size() - 1);
 }
 
+libcamera_stream_configuration_t *libcamera_camera_configuration_add_configuration_from(
+    libcamera_camera_configuration_t *config,
+    const libcamera_stream_configuration_t *src) {
+    if (!src)
+        return nullptr;
+    libcamera::StreamConfiguration cfg = *src;
+    config->addConfiguration(cfg);
+    if (config->size() == 0)
+        return nullptr;
+    return &config->at(config->size() - 1);
+}
+
 char *libcamera_camera_configuration_to_string(const libcamera_camera_configuration_t *config) {
     std::string out;
     for (size_t i = 0; i < config->size(); ++i) {
