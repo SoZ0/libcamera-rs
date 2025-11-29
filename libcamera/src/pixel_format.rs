@@ -1,4 +1,4 @@
-use std::{ffi::CStr, ptr::NonNull};
+use std::{ffi::CStr, ptr::NonNull, str::FromStr};
 
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
@@ -38,8 +38,18 @@ impl PixelFormat {
         self.0.modifier = modifier;
     }
 
+    /// Returns true if this format has a non-zero modifier set.
+    pub fn has_modifier(&self) -> bool {
+        self.modifier() != 0
+    }
+
+    /// Clears the modifier to zero.
+    pub fn clear_modifier(&mut self) {
+        self.0.modifier = 0;
+    }
+
     /// Parse a PixelFormat from its string representation (e.g. "YUYV").
-    pub fn from_str(name: &str) -> Option<Self> {
+    pub fn parse(name: &str) -> Option<Self> {
         let cstr = std::ffi::CString::new(name).ok()?;
         let fmt = unsafe { libcamera_pixel_format_from_str(cstr.as_ptr()) };
         let pf = PixelFormat(fmt);
@@ -53,6 +63,14 @@ impl PixelFormat {
     /// Returns true if the PixelFormat represents a valid libcamera format.
     pub fn is_valid(&self) -> bool {
         unsafe { libcamera_pixel_format_is_valid(&self.0) }
+    }
+}
+
+impl FromStr for PixelFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        PixelFormat::parse(s).ok_or_else(|| format!("unrecognized pixel format: {s}"))
     }
 }
 

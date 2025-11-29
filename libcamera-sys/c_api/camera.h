@@ -65,6 +65,7 @@ libcamera_stream_configuration_t *libcamera_camera_configuration_at(libcamera_ca
 libcamera_camera_configuration_status_t libcamera_camera_configuration_validate(libcamera_camera_configuration_t* config);
 libcamera_orientation_t libcamera_camera_configuration_get_orientation(const libcamera_camera_configuration_t* config);
 void libcamera_camera_configuration_set_orientation(libcamera_camera_configuration_t* config, libcamera_orientation_t orientation);
+libcamera_sensor_configuration_t *libcamera_camera_configuration_get_sensor_configuration(const libcamera_camera_configuration_t* config);
 
 libcamera_camera_t *libcamera_camera_copy(libcamera_camera_t *cam);
 void libcamera_camera_destroy(libcamera_camera_t *cam);
@@ -88,6 +89,12 @@ int libcamera_camera_stop(libcamera_camera_t *cam);
 
 libcamera_sensor_configuration_t *libcamera_sensor_configuration_create();
 void libcamera_sensor_configuration_destroy(libcamera_sensor_configuration_t *config);
+bool libcamera_sensor_configuration_is_valid(const libcamera_sensor_configuration_t *config);
+unsigned int libcamera_sensor_configuration_get_bit_depth(const libcamera_sensor_configuration_t *config);
+libcamera_size_t libcamera_sensor_configuration_get_output_size(const libcamera_sensor_configuration_t *config);
+libcamera_rectangle_t libcamera_sensor_configuration_get_analog_crop(const libcamera_sensor_configuration_t *config);
+void libcamera_sensor_configuration_get_binning(const libcamera_sensor_configuration_t *config, unsigned int *x, unsigned int *y);
+void libcamera_sensor_configuration_get_skipping(const libcamera_sensor_configuration_t *config, unsigned int *x_odd_inc, unsigned int *x_even_inc, unsigned int *y_odd_inc, unsigned int *y_even_inc);
 void libcamera_sensor_configuration_set_bit_depth(libcamera_sensor_configuration_t *config, unsigned int bit_depth);
 void libcamera_sensor_configuration_set_output_size(libcamera_sensor_configuration_t *config, unsigned int width, unsigned int height);
 void libcamera_sensor_configuration_set_analog_crop(libcamera_sensor_configuration_t *config, const libcamera_rectangle_t *crop);

@@ -392,6 +392,35 @@ impl AsFrameBuffer for OwnedFrameBuffer {
     }
 }
 
+impl OwnedFrameBuffer {
+    /// Returns true if planes are contiguous within a single FD and ordered without gaps.
+    pub fn is_contiguous(&self) -> bool {
+        let planes = self.planes();
+        if planes.is_empty() {
+            return false;
+        }
+        // Gather (fd, offset, length)
+        let mut entries: Vec<(i32, usize, usize)> = planes
+            .into_iter()
+            .filter_map(|p| p.offset().map(|off| (p.fd(), off, p.len())))
+            .collect();
+        // Must all share the same fd
+        if entries.iter().map(|e| e.0).collect::<std::collections::HashSet<_>>().len() != 1 {
+            return false;
+        }
+        entries.sort_by_key(|e| e.1);
+        // Check contiguous offsets
+        let mut expected = entries[0].1;
+        for (_, off, len) in entries {
+            if off != expected {
+                return false;
+            }
+            expected = off + len;
+        }
+        true
+    }
+}
+
 impl core::fmt::Debug for OwnedFrameBuffer {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("OwnedFrameBuffer")

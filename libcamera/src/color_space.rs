@@ -79,7 +79,7 @@ impl ColorSpace {
     }
 
     /// Returns libcamera string representation (e.g. "Smpte170m/Rec709/Full").
-    pub fn to_string(&self) -> String {
+    pub fn to_repr(&self) -> String {
         unsafe {
             let ptr = libcamera_color_space_to_string(&(*self).into());
             if ptr.is_null() {
@@ -97,7 +97,7 @@ impl ColorSpace {
         let cs = unsafe { libcamera_color_space_from_string(cstr.as_ptr()) };
         let cs = ColorSpace::from(cs);
         // libcamera::ColorSpace::Raw is a valid fallback; to detect failure, re-stringify and compare.
-        if cs.to_string().is_empty() {
+        if cs.to_repr().is_empty() {
             None
         } else {
             Some(cs)
@@ -110,6 +110,12 @@ impl ColorSpace {
         let ok = unsafe { libcamera_color_space_adjust(&mut cs, &pixel_format.0) };
         *self = cs.into();
         ok
+    }
+}
+
+impl core::fmt::Display for ColorSpace {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str(&self.to_repr())
     }
 }
 

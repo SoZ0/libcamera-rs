@@ -8,10 +8,9 @@ fn main() {
 
     println!("Waiting for hotplug events. Press Ctrl+C to exit.");
     loop {
-        match rx.recv_timeout(Duration::from_secs(1)) {
-            Ok(evt) => println!("Event: {:?}", evt),
-            Err(_) => {}
-        };
+        if let Ok(evt) = rx.recv_timeout(Duration::from_secs(1)) {
+            println!("Event: {:?}", evt);
+        }
         std::thread::sleep(Duration::from_secs(1));
     }
 }

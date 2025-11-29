@@ -136,6 +136,49 @@ impl SensorConfiguration {
     pub fn set_skipping(&mut self, x_odd: u32, x_even: u32, y_odd: u32, y_even: u32) {
         unsafe { libcamera_sensor_configuration_set_skipping(self.item.as_ptr(), x_odd, x_even, y_odd, y_even) }
     }
+
+    pub fn is_valid(&self) -> bool {
+        unsafe { libcamera_sensor_configuration_is_valid(self.item.as_ptr()) }
+    }
+
+    pub fn bit_depth(&self) -> u32 {
+        unsafe { libcamera_sensor_configuration_get_bit_depth(self.item.as_ptr()) }
+    }
+
+    pub fn output_size(&self) -> Rectangle {
+        let size = unsafe { libcamera_sensor_configuration_get_output_size(self.item.as_ptr()) };
+        Rectangle {
+            x: 0,
+            y: 0,
+            width: size.width,
+            height: size.height,
+        }
+    }
+
+    pub fn analog_crop(&self) -> Rectangle {
+        unsafe { libcamera_sensor_configuration_get_analog_crop(self.item.as_ptr()).into() }
+    }
+
+    pub fn binning(&self) -> (u32, u32) {
+        let mut x = 0;
+        let mut y = 0;
+        unsafe { libcamera_sensor_configuration_get_binning(self.item.as_ptr(), &mut x, &mut y) };
+        (x, y)
+    }
+
+    pub fn skipping(&self) -> (u32, u32, u32, u32) {
+        let (mut x_odd, mut x_even, mut y_odd, mut y_even) = (0, 0, 0, 0);
+        unsafe {
+            libcamera_sensor_configuration_get_skipping(
+                self.item.as_ptr(),
+                &mut x_odd,
+                &mut x_even,
+                &mut y_odd,
+                &mut y_even,
+            )
+        };
+        (x_odd, x_even, y_odd, y_even)
+    }
 }
 
 impl Default for SensorConfiguration {
@@ -213,6 +256,12 @@ impl CameraConfiguration {
     /// Sets the desired orientation of the captured image.
     pub fn set_orientation(&mut self, orientation: Orientation) {
         unsafe { libcamera_camera_configuration_set_orientation(self.ptr.as_ptr(), orientation.into()) }
+    }
+
+    /// Returns the sensor configuration if one is set by the application or pipeline.
+    pub fn sensor_configuration(&self) -> Option<SensorConfiguration> {
+        let ptr = unsafe { libcamera_camera_configuration_get_sensor_configuration(self.ptr.as_ptr()) };
+        NonNull::new(ptr).map(SensorConfiguration::from_ptr)
     }
 
     /// Re-validate and print stride/frame_size adjustments for each stream (helper for debugging).
@@ -385,10 +434,12 @@ struct ActiveCameraState<'d> {
     /// Callback for libcamera `requestCompleted` signal.
     request_completed_cb: Option<Box<dyn FnMut(Request) + Send + 'd>>,
     /// Callback for libcamera `bufferCompleted` signal.
-    buffer_completed_cb: Option<Box<dyn FnMut(&mut Request, Stream) + Send + 'd>>,
+    buffer_completed_cb: Option<BufferCompletedCb<'d>>,
     /// Callback for libcamera `disconnected` signal.
     disconnected_cb: Option<Box<dyn FnMut() + Send + 'd>>,
 }
+
+type BufferCompletedCb<'d> = Box<dyn FnMut(&mut Request, Stream) + Send + 'd>;
 
 /// An active instance of a camera.
 ///

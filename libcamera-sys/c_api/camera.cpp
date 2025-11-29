@@ -30,6 +30,13 @@ void libcamera_camera_configuration_set_orientation(libcamera_camera_configurati
     config->orientation = orientation;
 }
 
+libcamera_sensor_configuration_t *libcamera_camera_configuration_get_sensor_configuration(const libcamera_camera_configuration_t* config) {
+    if (!config->sensorConfig.has_value()) {
+        return nullptr;
+    }
+    return new libcamera_sensor_configuration_t(config->sensorConfig.value());
+}
+
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {
     const libcamera_camera_t& ptr = *cam;
     return new libcamera_camera_t(ptr);
@@ -137,6 +144,46 @@ libcamera_sensor_configuration_t *libcamera_sensor_configuration_create()
 void libcamera_sensor_configuration_set_bit_depth(libcamera_sensor_configuration_t *config, unsigned int bit_depth)
 {
     config->bitDepth = bit_depth;
+}
+
+bool libcamera_sensor_configuration_is_valid(const libcamera_sensor_configuration_t *config)
+{
+    return config->isValid();
+}
+
+unsigned int libcamera_sensor_configuration_get_bit_depth(const libcamera_sensor_configuration_t *config)
+{
+    return config->bitDepth;
+}
+
+libcamera_size_t libcamera_sensor_configuration_get_output_size(const libcamera_sensor_configuration_t *config)
+{
+    return config->outputSize;
+}
+
+libcamera_rectangle_t libcamera_sensor_configuration_get_analog_crop(const libcamera_sensor_configuration_t *config)
+{
+    return config->analogCrop;
+}
+
+void libcamera_sensor_configuration_get_binning(const libcamera_sensor_configuration_t *config, unsigned int *x, unsigned int *y)
+{
+    if (x)
+        *x = config->binning.binX;
+    if (y)
+        *y = config->binning.binY;
+}
+
+void libcamera_sensor_configuration_get_skipping(const libcamera_sensor_configuration_t *config, unsigned int *x_odd_inc, unsigned int *x_even_inc, unsigned int *y_odd_inc, unsigned int *y_even_inc)
+{
+    if (x_odd_inc)
+        *x_odd_inc = config->skipping.xOddInc;
+    if (x_even_inc)
+        *x_even_inc = config->skipping.xEvenInc;
+    if (y_odd_inc)
+        *y_odd_inc = config->skipping.yOddInc;
+    if (y_even_inc)
+        *y_even_inc = config->skipping.yEvenInc;
 }
 
 void libcamera_sensor_configuration_set_output_size(libcamera_sensor_configuration_t *config, unsigned int width, unsigned int height)
