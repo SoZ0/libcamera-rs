@@ -431,7 +431,7 @@ fn main() {
                 })
                 .unwrap_or_else(|| vec![0; 6])
                 .chunks(2)
-                .map(|c| (c.get(0).copied().unwrap_or(0), c.get(1).copied().unwrap_or(0)))
+                .map(|c| (c.first().copied().unwrap_or(0), c.get(1).copied().unwrap_or(0)))
                 .collect();
 
             let mut v4l2_formats: Vec<u32> = Vec::new();

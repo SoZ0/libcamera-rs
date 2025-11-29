@@ -4,6 +4,7 @@ use std::{
     marker::PhantomData,
     ptr::NonNull,
     sync::mpsc,
+    sync::{Arc, Mutex},
 };
 
 use libcamera_sys::*;
@@ -29,14 +30,23 @@ pub struct CameraManager {
     callbacks: Box<ManagerCallbacks>,
     added_handle: *mut libcamera_callback_handle_t,
     removed_handle: *mut libcamera_callback_handle_t,
+    started: bool,
+    tracker: Arc<CameraTracker>,
 }
 
 impl CameraManager {
-    /// Initializes `libcamera` and creates [Self].
+    /// Initializes `libcamera`, starts the manager and creates [Self].
     pub fn new() -> io::Result<Self> {
+        let mut mgr = Self::new_unstarted()?;
+        mgr.start()?;
+        Ok(mgr)
+    }
+
+    /// Create a `CameraManager` without starting it.
+    ///
+    /// Call [Self::start] before using it to enumerate cameras.
+    pub fn new_unstarted() -> io::Result<Self> {
         let ptr = NonNull::new(unsafe { libcamera_camera_manager_create() }).unwrap();
-        let ret = unsafe { libcamera_camera_manager_start(ptr.as_ptr()) };
-        handle_result(ret)?;
         Ok(CameraManager {
             ptr,
             callbacks: Box::new(ManagerCallbacks {
@@ -46,26 +56,73 @@ impl CameraManager {
             }),
             added_handle: core::ptr::null_mut(),
             removed_handle: core::ptr::null_mut(),
+            started: false,
+            tracker: Arc::new(CameraTracker::default()),
         })
+    }
+
+    /// Start the camera manager if it is not already running.
+    pub fn start(&mut self) -> io::Result<()> {
+        if self.started {
+            return Ok(());
+        }
+        let ret = unsafe { libcamera_camera_manager_start(self.ptr.as_ptr()) };
+        handle_result(ret)?;
+        self.started = true;
+        Ok(())
+    }
+
+    /// Stop the camera manager. Safe to call multiple times.
+    pub fn stop(&mut self) -> io::Result<()> {
+        if !self.started {
+            return Ok(());
+        }
+        unsafe { libcamera_camera_manager_stop(self.ptr.as_ptr()) };
+        self.started = false;
+        Ok(())
+    }
+
+    /// Attempt to stop only if no tracked cameras are still alive.
+    pub fn try_stop(&mut self) -> io::Result<()> {
+        if self.tracker.has_live_handles() {
+            return Err(io::Error::other(
+                "cannot stop CameraManager while cameras are still alive",
+            ));
+        }
+        self.stop()
+    }
+
+    /// Restart the manager by stopping (if safe) and starting again.
+    pub fn restart(&mut self) -> io::Result<()> {
+        self.try_stop()?;
+        self.start()
+    }
+
+    /// Returns true if the manager has been started.
+    pub fn is_started(&self) -> bool {
+        self.started
     }
 
     /// Returns version string of the linked libcamera.
     pub fn version(&self) -> &str {
-        unsafe { CStr::from_ptr(libcamera_camera_manager_version(self.ptr.as_ptr())) }
-            .to_str()
-            .unwrap()
+        unsafe { CStr::from_ptr(libcamera_version_string()) }.to_str().unwrap()
     }
 
     /// Enumerates cameras within the system.
     pub fn cameras<'a>(&self) -> CameraList<'a> {
-        unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
+        unsafe {
+            CameraList::from_ptr(
+                NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap(),
+                Some(self.tracker.clone()),
+            )
+        }
     }
 
     /// Returns a camera by id if present.
     pub fn get<'a>(&self, id: &str) -> Option<Camera<'a>> {
         let id_cstr = CString::new(id).ok()?;
         let cam_ptr = unsafe { libcamera_camera_manager_get_id(self.ptr.as_ptr(), id_cstr.as_ptr()) };
-        NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr(p) })
+        NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr_tracked(p, Some(self.tracker.clone())) })
     }
 
     /// Set the log level.
@@ -140,6 +197,10 @@ impl CameraManager {
 
 impl Drop for CameraManager {
     fn drop(&mut self) {
+        if self.started {
+            unsafe { libcamera_camera_manager_stop(self.ptr.as_ptr()) };
+            self.started = false;
+        }
         unsafe {
             if !self.added_handle.is_null() {
                 libcamera_camera_manager_camera_signal_disconnect(self.ptr.as_ptr(), self.added_handle);
@@ -147,22 +208,40 @@ impl Drop for CameraManager {
             if !self.removed_handle.is_null() {
                 libcamera_camera_manager_camera_signal_disconnect(self.ptr.as_ptr(), self.removed_handle);
             }
-            libcamera_camera_manager_stop(self.ptr.as_ptr());
             libcamera_camera_manager_destroy(self.ptr.as_ptr());
         }
+    }
+}
+
+#[derive(Default)]
+pub(crate) struct CameraTracker {
+    handles: Mutex<Vec<std::sync::Weak<()>>>,
+}
+
+impl CameraTracker {
+    pub(crate) fn track(&self) -> std::sync::Arc<()> {
+        let token = std::sync::Arc::new(());
+        self.handles.lock().unwrap().push(std::sync::Arc::downgrade(&token));
+        token
+    }
+
+    fn has_live_handles(&self) -> bool {
+        self.handles.lock().unwrap().iter().any(|w| w.upgrade().is_some())
     }
 }
 
 pub struct CameraList<'d> {
     ptr: NonNull<libcamera_camera_list_t>,
     _phantom: PhantomData<&'d ()>,
+    tracker: Option<Arc<CameraTracker>>,
 }
 
 impl<'d> CameraList<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_list_t>) -> Self {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_list_t>, tracker: Option<Arc<CameraTracker>>) -> Self {
         Self {
             ptr,
             _phantom: Default::default(),
+            tracker,
         }
     }
 
@@ -181,7 +260,8 @@ impl<'d> CameraList<'d> {
     /// Returns [None] if index is out of range of available cameras.
     pub fn get(&self, index: usize) -> Option<Camera<'d>> {
         let cam_ptr = unsafe { libcamera_camera_list_get(self.ptr.as_ptr(), index as _) };
-        NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr(p) })
+        let tracker = self.tracker.clone();
+        NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr_tracked(p, tracker) })
     }
 
     /// Returns an iterator over the cameras in the list.

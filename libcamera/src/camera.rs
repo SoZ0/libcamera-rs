@@ -11,6 +11,7 @@ use std::{
 use libcamera_sys::*;
 
 use crate::{
+    camera_manager::CameraTracker,
     control::{ControlInfoMap, ControlList, PropertyList},
     geometry::{Rectangle, Size},
     request::Request,
@@ -350,6 +351,7 @@ impl Drop for CameraConfiguration {
 pub struct Camera<'d> {
     pub(crate) ptr: NonNull<libcamera_camera_t>,
     _phantom: PhantomData<&'d ()>,
+    pub(crate) _token: Option<std::sync::Arc<()>>,
 }
 
 impl<'d> Camera<'d> {
@@ -357,6 +359,19 @@ impl<'d> Camera<'d> {
         Self {
             ptr,
             _phantom: Default::default(),
+            _token: None,
+        }
+    }
+
+    pub(crate) unsafe fn from_ptr_tracked(
+        ptr: NonNull<libcamera_camera_t>,
+        tracker: Option<std::sync::Arc<CameraTracker>>,
+    ) -> Self {
+        let token = tracker.map(|t| t.track());
+        Self {
+            ptr,
+            _phantom: Default::default(),
+            _token: token,
         }
     }
 
@@ -429,7 +444,12 @@ impl<'d> Camera<'d> {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(-ret))
         } else {
-            Ok(unsafe { ActiveCamera::from_ptr(NonNull::new(libcamera_camera_copy(self.ptr.as_ptr())).unwrap()) })
+            Ok(unsafe {
+                ActiveCamera::from_ptr_with_token(
+                    NonNull::new(libcamera_camera_copy(self.ptr.as_ptr())).unwrap(),
+                    self._token.clone(),
+                )
+            })
         }
     }
 }
@@ -516,6 +536,7 @@ pub struct ActiveCamera<'d> {
     disconnected_handle: *mut libcamera_callback_handle_t,
     /// Internal state that is shared with callback handlers.
     state: Box<Mutex<ActiveCameraState<'d>>>,
+    _token: Option<std::sync::Arc<()>>,
 }
 
 /// Lightweight buffer completion event for channel delivery.
@@ -528,7 +549,10 @@ pub struct BufferCompletedEvent {
 }
 
 impl<'d> ActiveCamera<'d> {
-    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_camera_t>) -> Self {
+    pub(crate) unsafe fn from_ptr_with_token(
+        ptr: NonNull<libcamera_camera_t>,
+        token: Option<std::sync::Arc<()>>,
+    ) -> Self {
         let mut state = Box::new(Mutex::new(ActiveCameraState::default()));
 
         let request_completed_handle = unsafe {
@@ -546,6 +570,7 @@ impl<'d> ActiveCamera<'d> {
             buffer_completed_handle: core::ptr::null_mut(),
             disconnected_handle: core::ptr::null_mut(),
             state,
+            _token: token,
         }
     }
 

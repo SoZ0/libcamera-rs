@@ -4,10 +4,15 @@ use libcamera::{color_space::ColorSpace, pixel_format::PixelFormat};
 fn main() {
     let src = ColorSpace::rec709();
     let pf = PixelFormat::parse("YUYV").expect("parse");
-    let adjusted = src.with_adjusted_for_format(pf);
     println!("source color space: {}", src);
-    match adjusted {
-        Some(cs) => println!("adjusted for {pf:?}: {cs}"),
-        None => println!("color space not valid for format {pf:?}"),
-    }
+    let (adjusted, changed) = {
+        let mut clone = src;
+        let changed = clone.adjust_for_format(pf);
+        (clone, changed)
+    };
+    println!(
+        "{} for {pf:?}: {}",
+        if changed { "adjusted" } else { "already compatible" },
+        adjusted
+    );
 }

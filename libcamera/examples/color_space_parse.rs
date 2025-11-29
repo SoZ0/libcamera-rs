@@ -14,9 +14,11 @@ fn main() {
     println!("Parsed color space: {}", cs);
     println!("Parsed pixel format: {:?}", pf);
 
-    if cs.adjust_for_format(pf) {
-        println!("Adjusted color space for {}: {}", pf_str, cs);
-    } else {
-        println!("Color space {} could not be adjusted for {}", cs_str, pf_str);
-    }
+    let adjusted = cs.adjust_for_format(pf);
+    println!(
+        "{} color space for {}: {}",
+        if adjusted { "Adjusted" } else { "Already compatible" },
+        pf_str,
+        cs
+    );
 }

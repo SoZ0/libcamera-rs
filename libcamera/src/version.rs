@@ -1,5 +1,9 @@
-//! Compile-time libcamera version information (from libcamera/version.h).
-use libcamera_sys::{LIBCAMERA_VERSION_MAJOR, LIBCAMERA_VERSION_MINOR, LIBCAMERA_VERSION_PATCH};
+//! Compile-time libcamera version information (from libcamera/version.h) and runtime version string.
+use std::ffi::CStr;
+
+use libcamera_sys::{
+    libcamera_version_string, LIBCAMERA_VERSION_MAJOR, LIBCAMERA_VERSION_MINOR, LIBCAMERA_VERSION_PATCH,
+};
 
 /// Compile-time libcamera version.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -27,4 +31,11 @@ impl Version {
     pub const fn current() -> Version {
         VERSION
     }
+}
+
+/// Runtime libcamera version string reported by `CameraManager::version()`.
+///
+/// This does not require creating or starting a `CameraManager`.
+pub fn runtime_version() -> &'static str {
+    unsafe { CStr::from_ptr(libcamera_version_string()) }.to_str().unwrap()
 }

@@ -451,23 +451,6 @@ impl PropertyList {
 
         Ok(C::try_from(val)?)
     }
-
-    /// Sets property value.
-    ///
-    /// This can fail if property is not supported by the camera, but due to libcamera API limitations an error will not
-    /// be returned. Use [PropertyList::get] if you need to ensure that value was set.
-    pub fn set<C: Property>(&mut self, val: C) -> Result<(), ControlError> {
-        let ctrl_val: ControlValue = val.into();
-
-        unsafe {
-            let val_ptr = NonNull::new(libcamera_control_value_create()).unwrap();
-            ctrl_val.write(val_ptr);
-            libcamera_control_list_set(self.ptr().cast_mut(), C::ID as _, val_ptr.as_ptr());
-            libcamera_control_value_destroy(val_ptr.as_ptr());
-        }
-
-        Ok(())
-    }
 }
 
 impl<'d> IntoIterator for &'d PropertyList {

@@ -216,10 +216,10 @@ fn compute_stride(info: &PixelFormatInfoData, width: u32, plane: u32, align: u32
     if plane_info.bytes_per_group == 0 || plane_info.vertical_sub_sampling == 0 {
         return 0;
     }
-    let groups = (width as u64 + info.pixels_per_group as u64 - 1) / info.pixels_per_group as u64;
+    let groups = (width as u64).div_ceil(info.pixels_per_group as u64);
     let mut stride = groups * plane_info.bytes_per_group as u64;
     if align > 0 {
-        stride = ((stride + align as u64 - 1) / align as u64) * align as u64;
+        stride = stride.div_ceil(align as u64) * align as u64;
     }
     stride as u32
 }
@@ -233,7 +233,8 @@ fn compute_plane_size(info: &PixelFormatInfoData, size: Size, plane: u32, align:
         return 0;
     }
     let stride = compute_stride(info, size.width, plane, align) as u64;
-    let height = size.height as u64 / plane_info.vertical_sub_sampling as u64;
+    // ceil(height / vertical_sub_sampling)
+    let height = (size.height as u64).div_ceil(plane_info.vertical_sub_sampling as u64);
     (stride * height) as u32
 }
 

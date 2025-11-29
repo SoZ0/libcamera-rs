@@ -108,22 +108,25 @@ impl ColorSpace {
         }
     }
 
-    /// Adjust this color space for a given pixel format. Returns true if valid after adjustment.
+    /// Adjust this color space for a given pixel format.
+    ///
+    /// Returns `true` if the color space was modified to make it compatible with the pixel format,
+    /// or `false` if it was already compatible.
     pub fn adjust_for_format(&mut self, pixel_format: crate::pixel_format::PixelFormat) -> bool {
         let mut cs = (*self).into();
-        let ok = unsafe { libcamera_color_space_adjust(&mut cs, &pixel_format.0) };
+        let adjusted = unsafe { libcamera_color_space_adjust(&mut cs, &pixel_format.0) };
         *self = cs.into();
-        ok
+        adjusted
     }
 
-    /// Returns a clone of this color space adjusted for the given pixel format, or None if invalid.
+    /// Returns a clone of this color space adjusted for the given pixel format.
+    ///
+    /// libcamera always treats the color space as compatible (possibly changing it), so this
+    /// will always return `Some`.
     pub fn with_adjusted_for_format(&self, pixel_format: crate::pixel_format::PixelFormat) -> Option<Self> {
         let mut clone = *self;
-        if clone.adjust_for_format(pixel_format) {
-            Some(clone)
-        } else {
-            None
-        }
+        let _ = clone.adjust_for_format(pixel_format);
+        Some(clone)
     }
 }
 
