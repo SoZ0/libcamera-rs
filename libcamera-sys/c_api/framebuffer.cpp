@@ -1,6 +1,7 @@
 #include "framebuffer.h"
 
 #include <vector>
+#include <libcamera/base/shared_fd.h>
 
 extern "C" {
 
@@ -35,6 +36,34 @@ libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_f
 }
 
 // --- libcamera_framebuffer_t ---
+libcamera_framebuffer_t *libcamera_framebuffer_create(const struct libcamera_framebuffer_plane_info *planes, size_t num_planes, uint64_t cookie) {
+    if (!planes || num_planes == 0)
+        return nullptr;
+
+    std::vector<libcamera::FrameBuffer::Plane> fb_planes;
+    fb_planes.reserve(num_planes);
+
+    for (size_t i = 0; i < num_planes; ++i) {
+        const auto &p = planes[i];
+        libcamera::SharedFD fd(p.fd);
+        if (!fd.isValid())
+            return nullptr;
+
+        libcamera::FrameBuffer::Plane plane;
+        plane.fd = std::move(fd);
+        plane.offset = p.offset;
+        plane.length = p.length;
+        fb_planes.push_back(std::move(plane));
+    }
+
+    auto span = libcamera::Span<const libcamera::FrameBuffer::Plane>(fb_planes);
+    return new libcamera::FrameBuffer(span, cookie);
+}
+
+void libcamera_framebuffer_destroy(libcamera_framebuffer_t *framebuffer) {
+    delete framebuffer;
+}
+
 struct libcamera_framebuffer_planes {
     std::vector<libcamera::FrameBuffer::Plane> planes;
 };
@@ -52,6 +81,10 @@ const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera
 
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer) {
     return framebuffer->cookie();
+}
+
+void libcamera_framebuffer_set_cookie(libcamera_framebuffer_t *framebuffer, uint64_t cookie) {
+    framebuffer->setCookie(cookie);
 }
 
 int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer) {

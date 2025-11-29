@@ -1,9 +1,9 @@
 #ifndef __LIBCAMERA_C_FRAMEBUFFER__
 #define __LIBCAMERA_C_FRAMEBUFFER__
 
+#include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
-#include <stddef.h>
 
 enum libcamera_frame_metadata_status {
     LIBCAMERA_FRAME_METADATA_STATUS_SUCCESS,
@@ -14,6 +14,12 @@ enum libcamera_frame_metadata_status {
 
 struct libcamera_frame_metadata_plane {
     unsigned int bytes_used;
+};
+
+struct libcamera_framebuffer_plane_info {
+    int fd;
+    unsigned int offset;
+    unsigned int length;
 };
 
 #ifdef __cplusplus
@@ -53,9 +59,12 @@ size_t libcamera_frame_metadata_planes_size(const libcamera_frame_metadata_plane
 libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_frame_metadata_planes_t *planes, size_t index);
 
 // --- libcamera_framebuffer_t ---
+libcamera_framebuffer_t *libcamera_framebuffer_create(const struct libcamera_framebuffer_plane_info *planes, size_t num_planes, uint64_t cookie);
+void libcamera_framebuffer_destroy(libcamera_framebuffer_t *framebuffer);
 libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer);
 const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera_framebuffer_t *framebuffer);
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer);
+void libcamera_framebuffer_set_cookie(libcamera_framebuffer_t *framebuffer, uint64_t cookie);
 int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer);
 
 // --- libcamera_framebuffer_plane_t ---
