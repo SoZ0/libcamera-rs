@@ -1,5 +1,4 @@
-use std::collections::HashMap;
-use std::mem::MaybeUninit;
+use std::{collections::HashMap, mem::MaybeUninit};
 
 use thiserror::Error;
 

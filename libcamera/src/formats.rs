@@ -5,8 +5,7 @@
 //! fourcc/modifier pairs:
 //!
 //! ```
-//! use libcamera::formats;
-//! use libcamera::pixel_format::PixelFormat;
+//! use libcamera::{formats, pixel_format::PixelFormat};
 //!
 //! let fmt: PixelFormat = formats::NV12;
 //! let info = fmt.info().expect("pixel format info available");

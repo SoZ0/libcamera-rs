@@ -6,7 +6,6 @@ use std::{
 };
 
 use libc::{c_char, ftruncate};
-
 use libcamera::framebuffer::{AsFrameBuffer, FrameBufferPlane, OwnedFrameBuffer};
 
 fn create_memfd(name: &str, size: usize) -> io::Result<OwnedFd> {

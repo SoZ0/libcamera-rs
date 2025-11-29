@@ -1,6 +1,5 @@
 //! Demonstrates listening for per-buffer completion and disconnected callbacks.
-use std::sync::mpsc;
-use std::time::Duration;
+use std::{sync::mpsc, time::Duration};
 
 use libcamera::{
     camera_manager::CameraManager, framebuffer_allocator::FrameBufferAllocator, request::ReuseFlag, stream::StreamRole,

@@ -1,5 +1,6 @@
 use std::{
     collections::{BTreeMap, HashMap},
+    fmt::Write,
     path::Path,
 };
 
@@ -310,11 +311,13 @@ fn main() {
             eprintln!("Warning: failed to read {drm_path} for modifiers");
             return map;
         };
-        let vendor_re = Regex::new(r"#define\s+DRM_FORMAT_MOD_VENDOR_([A-Za-z0-9_]+)\s+([0-9xXa-fA-F]+)").unwrap();
-        let mod_re = Regex::new(
-            r"#define\s+DRM_FORMAT_MOD_([A-Za-z0-9_]+)\s+fourcc_mod_code\(\s*([A-Za-z0-9_]+)\s*,\s*([0-9xXa-fA-F]+)\s*\)",
-        )
-        .unwrap();
+        const VENDOR_RE: &str = r"#define\s+DRM_FORMAT_MOD_VENDOR_([A-Za-z0-9_]+)\s+([0-9xXa-fA-F]+)";
+        const MOD_RE: &str = concat!(
+            r"#define\s+DRM_FORMAT_MOD_([A-Za-z0-9_]+)\s+fourcc_mod_code\(",
+            r"\s*([A-Za-z0-9_]+)\s*,\s*([0-9xXa-fA-F]+)\s*\)",
+        );
+        let vendor_re = Regex::new(VENDOR_RE).unwrap();
+        let mod_re = Regex::new(MOD_RE).unwrap();
         let mut vendors = HashMap::new();
         for caps in vendor_re.captures_iter(&header) {
             let name = caps.get(1).unwrap().as_str().to_string();
@@ -378,8 +381,12 @@ fn main() {
         let colour_re = Regex::new(r"ColourEncoding([A-Za-z]+)").unwrap();
         let packed_re = Regex::new(r"\.packed\s*=\s*(true|false)").unwrap();
         let ppg_re = Regex::new(r"\.pixelsPerGroup\s*=\s*([0-9]+)").unwrap();
-        let planes_re =
-            Regex::new(r"\.planes\s*=\s*\{\{\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*\}\s*\}").unwrap();
+        const PLANES_RE: &str = concat!(
+            r"\.planes\s*=\s*\{\{\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,",
+            r"\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,",
+            r"\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*\}\s*\}",
+        );
+        let planes_re = Regex::new(PLANES_RE).unwrap();
         let v4l2_list_re = Regex::new(r"\.v4l2Formats\s*=\s*\{(?P<formats>[^}]*)\}").unwrap();
         let v4l2_item_re = Regex::new(r"V4L2PixelFormat\(\s*(V4L2_PIX_FMT_[A-Za-z0-9_]+)\s*\)").unwrap();
 
@@ -500,8 +507,16 @@ pub(crate) static PIXEL_FORMAT_INFO: &[PixelFormatInfoData] = &[
                 .collect::<Vec<_>>()
                 .join(", ");
 
-            out.push_str(&format!(
-                "    PixelFormatInfoData {{ name: \"{}\", fourcc: 0x{:08x}, modifier: 0x{:016x}, bits_per_pixel: {}, colour_encoding: {}, packed: {}, pixels_per_group: {}, planes: &[PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}], v4l2_formats: &[{}], }},\n",
+            let _ = writeln!(
+                out,
+                "    PixelFormatInfoData {{ \
+                 name: \"{}\", fourcc: 0x{:08x}, modifier: 0x{:016x}, bits_per_pixel: {}, \
+                 colour_encoding: {}, packed: {}, pixels_per_group: {}, \
+                 planes: &[PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, \
+                 PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, \
+                 PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}], \
+                 v4l2_formats: &[{}], \
+                 }},",
                 info.name,
                 info.fourcc,
                 info.modifier,
@@ -516,7 +531,7 @@ pub(crate) static PIXEL_FORMAT_INFO: &[PixelFormatInfoData] = &[
                 planes[2].0,
                 planes[2].1,
                 v4l2_list,
-            ));
+            );
         }
 
         out.push_str("];\n");

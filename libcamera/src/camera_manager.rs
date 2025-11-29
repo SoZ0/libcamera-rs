@@ -3,8 +3,7 @@ use std::{
     io,
     marker::PhantomData,
     ptr::NonNull,
-    sync::mpsc,
-    sync::{Arc, Mutex},
+    sync::{mpsc, Arc, Mutex},
 };
 
 use libcamera_sys::*;

@@ -1,5 +1,6 @@
-use libcamera_sys::*;
 use std::ffi::CString;
+
+use libcamera_sys::*;
 
 /// Color primaries
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
