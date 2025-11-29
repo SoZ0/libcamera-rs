@@ -15,6 +15,7 @@ default = ["vendor_draft", "libcamera_semver_versioning"]
 
 # Fallback to semver compatible libcamera control/property bindings when exact version is unavailable
 libcamera_semver_versioning = []
+ipa = ["libcamera-sys/ipa"]
 
 # Enables draft vendor control/property extensions
 vendor_draft = []
@@ -36,3 +37,8 @@ pkg-config = "0.3"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+
+[[example]]
+name = "ipa_overview"
+path = "examples/ipa_overview.rs"
+required-features = ["ipa"]

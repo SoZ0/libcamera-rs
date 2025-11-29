@@ -10,6 +10,10 @@ keywords = ["libcamera", "camera"]
 categories = ["external-ffi-bindings", "computer-vision", "multimedia"]
 readme = "../README.md"
 
+[features]
+default = []
+ipa = []
+
 [lib]
 # libcamera comments are interpreted as rust code blocks failing the doctest
 doctest = false
