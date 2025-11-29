@@ -80,6 +80,7 @@ int libcamera_camera_acquire(libcamera_camera_t *cam);
 int libcamera_camera_release(libcamera_camera_t *cam);
 const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_camera_t *cam);
 const libcamera_control_list_t *libcamera_camera_properties(const libcamera_camera_t *cam);
+const libcamera_stream_set_t *libcamera_camera_streams(const libcamera_camera_t *cam);
 libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count);
 int libcamera_camera_configure(libcamera_camera_t *cam, libcamera_camera_configuration_t *config);
 libcamera_request_t *libcamera_camera_create_request(libcamera_camera_t *cam, uint64_t cookie);

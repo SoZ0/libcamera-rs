@@ -1,8 +1,13 @@
 #include "stream.h"
 
 #include <libcamera/libcamera.h>
+#include <vector>
 
 extern "C" {
+
+struct libcamera_stream_set {
+    std::vector<libcamera::Stream *> streams;
+};
 
 libcamera_pixel_formats_t *libcamera_stream_formats_pixel_formats(const libcamera_stream_formats_t* formats) {
     return new libcamera_pixel_formats_t(std::move(formats->pixelformats()));
@@ -38,6 +43,20 @@ void libcamera_stream_configuration_set_color_space(libcamera_stream_configurati
     } else {
         config->colorSpace.reset();
     }
+}
+
+size_t libcamera_stream_set_size(const libcamera_stream_set_t *set) {
+    return set->streams.size();
+}
+
+libcamera_stream_t *libcamera_stream_set_get(const libcamera_stream_set_t *set, size_t index) {
+    if (index >= set->streams.size())
+        return nullptr;
+    return set->streams.at(index);
+}
+
+void libcamera_stream_set_destroy(libcamera_stream_set_t *set) {
+    delete set;
 }
 
 }

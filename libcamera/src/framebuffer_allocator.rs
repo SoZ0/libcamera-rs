@@ -84,6 +84,24 @@ impl FrameBufferAllocator {
                 .collect())
         }
     }
+
+    /// Free buffers for a stream.
+    pub fn free(&mut self, stream: &Stream) -> io::Result<()> {
+        let mut inner = self.inner.lock().unwrap();
+        let ret = unsafe { libcamera_framebuffer_allocator_free(inner.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            inner.allocated_streams.retain(|s| s != &stream.ptr);
+            Ok(())
+        }
+    }
+
+    /// Returns true if any buffers are allocated.
+    pub fn allocated(&self) -> bool {
+        let inner = self.inner.lock().unwrap();
+        unsafe { libcamera_framebuffer_allocator_allocated(inner.ptr.as_ptr()) }
+    }
 }
 
 pub struct FrameBuffer {

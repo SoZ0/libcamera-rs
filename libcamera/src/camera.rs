@@ -12,7 +12,7 @@ use libcamera_sys::*;
 
 use crate::{
     control::{ControlInfoMap, ControlList, PropertyList},
-    geometry::Rectangle,
+    geometry::{Rectangle, Size},
     request::Request,
     stream::{Stream, StreamConfigurationRef, StreamRole},
     utils::Immutable,
@@ -145,14 +145,9 @@ impl SensorConfiguration {
         unsafe { libcamera_sensor_configuration_get_bit_depth(self.item.as_ptr()) }
     }
 
-    pub fn output_size(&self) -> Rectangle {
+    pub fn output_size(&self) -> Size {
         let size = unsafe { libcamera_sensor_configuration_get_output_size(self.item.as_ptr()) };
-        Rectangle {
-            x: 0,
-            y: 0,
-            width: size.width,
-            height: size.height,
-        }
+        size.into()
     }
 
     pub fn analog_crop(&self) -> Rectangle {
@@ -338,6 +333,22 @@ impl<'d> Camera<'d> {
     pub fn properties(&self) -> &PropertyList {
         unsafe {
             PropertyList::from_ptr(NonNull::new(libcamera_camera_properties(self.ptr.as_ptr()).cast_mut()).unwrap())
+        }
+    }
+
+    /// Returns the set of active streams for this camera.
+    pub fn streams(&self) -> Vec<Stream> {
+        unsafe {
+            let set = libcamera_camera_streams(self.ptr.as_ptr());
+            if set.is_null() {
+                return Vec::new();
+            }
+            let count = libcamera_stream_set_size(set);
+            let streams = (0..count)
+                .filter_map(|i| NonNull::new(libcamera_stream_set_get(set, i)).map(|p| unsafe { Stream::from_ptr(p) }))
+                .collect();
+            libcamera_stream_set_destroy(set as *mut _);
+            streams
         }
     }
 

@@ -15,6 +15,7 @@ pub mod request;
 pub mod stream;
 pub mod utils;
 pub mod vendor_features;
+pub mod transform;
 
 mod generated;
 pub use generated::*;

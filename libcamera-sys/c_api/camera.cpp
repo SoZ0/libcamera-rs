@@ -1,4 +1,9 @@
 #include "camera.h"
+#include <vector>
+
+struct libcamera_stream_set {
+    std::vector<libcamera::Stream *> streams;
+};
 
 extern "C" {
 
@@ -109,6 +114,13 @@ const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_ca
 
 const libcamera_control_list_t *libcamera_camera_properties(const libcamera_camera_t *cam) {
     return &cam->get()->properties();
+}
+
+const libcamera_stream_set_t *libcamera_camera_streams(const libcamera_camera_t *cam) {
+    auto wrapper = new libcamera_stream_set_t();
+    const auto &set = cam->get()->streams();
+    wrapper->streams.insert(wrapper->streams.end(), set.begin(), set.end());
+    return wrapper;
 }
 
 libcamera_camera_configuration_t *libcamera_camera_generate_configuration(libcamera_camera_t *cam, const enum libcamera_stream_role *roles, size_t role_count) {

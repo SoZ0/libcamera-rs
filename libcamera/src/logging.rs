@@ -52,6 +52,7 @@ impl From<LoggingLevel> for &'static CStr {
 pub enum LoggingStream {
     StdOut,
     StdErr,
+    Custom(*mut core::ffi::c_void),
 }
 
 impl From<LoggingStream> for libcamera_logging_stream_t {
@@ -59,6 +60,7 @@ impl From<LoggingStream> for libcamera_logging_stream_t {
         match value {
             LoggingStream::StdOut => libcamera_logging_stream::LIBCAMERA_LOGGING_STREAM_STDOUT,
             LoggingStream::StdErr => libcamera_logging_stream::LIBCAMERA_LOGGING_STREAM_STDERR,
+            LoggingStream::Custom(_) => libcamera_logging_stream::LIBCAMERA_LOGGING_STREAM_CUSTOM,
         }
     }
 }
@@ -72,7 +74,12 @@ pub fn log_set_file(file: &str, color: bool) -> io::Result<()> {
 
 /// Direct logging to a stream.
 pub fn log_set_stream(stream: LoggingStream, color: bool) -> io::Result<()> {
-    let ret = unsafe { libcamera_log_set_stream(stream.into(), color) };
+    let ret = unsafe {
+        match stream {
+            LoggingStream::Custom(ptr) => libcamera_log_set_custom_stream(ptr, color),
+            _ => libcamera_log_set_stream(stream.into(), color),
+        }
+    };
     handle_result(ret)
 }
 
