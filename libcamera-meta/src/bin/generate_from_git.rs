@@ -590,6 +590,8 @@ mod generate_rust {
         let inner = match t {
             ControlType::Bool => "bool",
             ControlType::Byte => "u8",
+            ControlType::Uint16 => "u16",
+            ControlType::Uint32 => "u32",
             ControlType::Int32 => "i32",
             ControlType::Int64 => "i64",
             ControlType::Float => "f32",

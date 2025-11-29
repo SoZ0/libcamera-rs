@@ -12,6 +12,8 @@ Project structure:
   - [libcamera-meta](./libcamera-meta/) - Scripts for generating C and Rust code from libcamera controls, properties and formats YAMLs. Mostly used by the [regenerate.sh](./regenerate.sh) script.
   - [libcamera](./libcamera/) - Safe libcamera Rust interface on top of `libcamera-sys`.
 
+Code generation uses a cached clone under `libcamera-git`; run `cargo run --bin generate_from_git` (or `./regenerate.sh`) occasionally to fetch the latest upstream tags before regenerating `versioned_files`. These bindings intentionally track libcamera’s public, application-facing API; pipeline-handler internals aren’t surfaced.
+
 Unreleased documentation for `main`: [here](https://lit-robotics.github.io/libcamera-rs/libcamera/index.html)
 
 ## Building
