@@ -338,18 +338,20 @@ impl<'d> Camera<'d> {
 
     /// Returns the set of active streams for this camera.
     pub fn streams(&self) -> Vec<Stream> {
-        unsafe {
-            let set = libcamera_camera_streams(self.ptr.as_ptr());
-            if set.is_null() {
-                return Vec::new();
-            }
-            let count = libcamera_stream_set_size(set);
-            let streams = (0..count)
-                .filter_map(|i| NonNull::new(libcamera_stream_set_get(set, i)).map(|p| unsafe { Stream::from_ptr(p) }))
-                .collect();
-            libcamera_stream_set_destroy(set as *mut _);
-            streams
+        let set = unsafe { libcamera_camera_streams(self.ptr.as_ptr()) };
+        if set.is_null() {
+            return Vec::new();
         }
+        let count = unsafe { libcamera_stream_set_size(set) };
+        let streams = (0..count)
+            .filter_map(|i| {
+                unsafe {
+                    NonNull::new(libcamera_stream_set_get(set, i)).map(|p| Stream::from_ptr(p))
+                }
+            })
+            .collect();
+        unsafe { libcamera_stream_set_destroy(set as *mut _) };
+        streams
     }
 
     /// Generates default camera configuration for the given [StreamRole]s.
