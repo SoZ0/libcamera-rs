@@ -3,9 +3,9 @@ use std::{marker::PhantomData, ptr::NonNull};
 use libcamera_sys::*;
 
 use crate::{
+    color_space::ColorSpace,
     geometry::{Size, SizeRange},
     pixel_format::{PixelFormat, PixelFormats},
-    color_space::{ColorSpace},
     utils::Immutable,
 };
 
@@ -150,7 +150,9 @@ impl StreamConfigurationRef<'_> {
     /// Returns the configured color space, if any.
     pub fn get_color_space(&self) -> Option<ColorSpace> {
         if unsafe { libcamera_stream_configuration_has_color_space(self.ptr.as_ptr()) } {
-            Some(ColorSpace::from(unsafe { libcamera_stream_configuration_get_color_space(self.ptr.as_ptr()) }))
+            Some(ColorSpace::from(unsafe {
+                libcamera_stream_configuration_get_color_space(self.ptr.as_ptr())
+            }))
         } else {
             None
         }

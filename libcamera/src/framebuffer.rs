@@ -1,14 +1,14 @@
 use std::{
     io,
     marker::PhantomData,
-    os::fd::{FromRawFd, IntoRawFd, OwnedFd},
+    os::fd::{IntoRawFd, OwnedFd},
     ptr::NonNull,
 };
 
 use libcamera_sys::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::utils::Immutable;
+use crate::{fence::Fence, utils::Immutable};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -316,14 +316,9 @@ pub trait AsFrameBuffer: Send {
 
     /// Releases the acquire fence associated with this framebuffer, if any.
     ///
-    /// Returns `Ok(OwnedFd)` if a fence is present, or `None` if no fence is available.
-    fn release_fence(&self) -> Option<OwnedFd> {
-        let fd = unsafe { libcamera_framebuffer_release_fence(self.ptr().as_ptr()) };
-        if fd >= 0 {
-            Some(unsafe { OwnedFd::from_raw_fd(fd) })
-        } else {
-            None
-        }
+    /// Ownership of the fence is transferred to the caller.
+    fn release_fence(&self) -> Option<Fence> {
+        unsafe { Fence::from_ptr(libcamera_framebuffer_release_fence_handle(self.ptr().as_ptr())) }
     }
 
     /// Returns the Request owning this framebuffer, if any.
@@ -373,13 +368,7 @@ impl OwnedFrameBuffer {
             });
         }
 
-        let ptr = unsafe {
-            libcamera_framebuffer_create(
-                infos.as_ptr(),
-                infos.len(),
-                cookie.unwrap_or(0),
-            )
-        };
+        let ptr = unsafe { libcamera_framebuffer_create(infos.as_ptr(), infos.len(), cookie.unwrap_or(0)) };
 
         if let Some(ptr) = NonNull::new(ptr) {
             // Initialize metadata status sentinel to avoid uninitialized reads.
@@ -418,7 +407,13 @@ impl OwnedFrameBuffer {
             .filter_map(|p| p.offset().map(|off| (p.fd(), off, p.len())))
             .collect();
         // Must all share the same fd
-        if entries.iter().map(|e| e.0).collect::<std::collections::HashSet<_>>().len() != 1 {
+        if entries
+            .iter()
+            .map(|e| e.0)
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            != 1
+        {
             return false;
         }
         entries.sort_by_key(|e| e.1);

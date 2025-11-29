@@ -3,6 +3,7 @@
 
 #include "controls.h"
 #include "framebuffer.h"
+#include "fence.h"
 #include "stream.h"
 
 #include <stdint.h>
@@ -48,7 +49,7 @@ libcamera_control_list_t *libcamera_request_controls(libcamera_request_t *reques
 libcamera_control_list_t *libcamera_request_metadata(libcamera_request_t *request);
 const libcamera_request_buffer_map_t *libcamera_request_buffers(const libcamera_request_t *request);
 int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer);
-int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, int fence_fd);
+int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, libcamera_fence_t *fence);
 libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t *request, const libcamera_stream_t *stream);
 uint32_t libcamera_request_sequence(const libcamera_request_t *request);
 uint64_t libcamera_request_cookie(const libcamera_request_t *request);

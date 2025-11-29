@@ -1,4 +1,5 @@
 #include "framebuffer.h"
+#include "fence.h"
 
 #include <vector>
 #include <libcamera/base/shared_fd.h>
@@ -86,6 +87,11 @@ uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer
 
 void libcamera_framebuffer_set_cookie(libcamera_framebuffer_t *framebuffer, uint64_t cookie) {
     framebuffer->setCookie(cookie);
+}
+
+libcamera_fence_t *libcamera_framebuffer_release_fence_handle(libcamera_framebuffer_t *framebuffer) {
+    auto fence = framebuffer->releaseFence();
+    return fence.release();
 }
 
 int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer) {

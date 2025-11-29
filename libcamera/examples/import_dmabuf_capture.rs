@@ -20,9 +20,7 @@ fn main() -> io::Result<()> {
     let mut cam = cameras.iter().next().expect("no cameras").acquire().unwrap();
 
     // Configure viewfinder stream for simplicity.
-    let mut cfg = cam
-        .generate_configuration(&[StreamRole::ViewFinder])
-        .expect("config");
+    let mut cfg = cam.generate_configuration(&[StreamRole::ViewFinder]).expect("config");
     cfg.validate();
 
     cam.configure(&mut cfg).expect("configure");

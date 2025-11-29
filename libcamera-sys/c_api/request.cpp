@@ -1,4 +1,5 @@
 #include "request.h"
+#include "fence.h"
 #include <libcamera/libcamera.h>
 #include <cstring>
 
@@ -24,12 +25,12 @@ int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_s
     return request->addBuffer(stream, buffer);
 }
 
-int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, int fence_fd) {
-    std::unique_ptr<libcamera::Fence> fence;
-    if (fence_fd >= 0) {
-        fence = std::make_unique<libcamera::Fence>(libcamera::UniqueFD(fence_fd));
+int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, libcamera_fence_t *fence) {
+    std::unique_ptr<libcamera::Fence> acquire_fence;
+    if (fence) {
+        acquire_fence.reset(fence);
     }
-    return request->addBuffer(stream, buffer, std::move(fence));
+    return request->addBuffer(stream, buffer, std::move(acquire_fence));
 }
 
 libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t *request, const libcamera_stream_t *stream) {

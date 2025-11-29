@@ -1,8 +1,7 @@
 use core::panic;
 use std::{
-    env,
+    env, fs,
     path::{Path, PathBuf},
-    fs,
 };
 
 use semver::{Comparator, Op, Version};
@@ -88,8 +87,7 @@ fn main() {
         .first()
         .map(|p| p.join("libcamera/control_ids.h"))
         .expect("Unable to get libcamera include path");
-    let header_contents = fs::read_to_string(&control_ids_header)
-        .expect("Failed to read libcamera/control_ids.h");
+    let header_contents = fs::read_to_string(&control_ids_header).expect("Failed to read libcamera/control_ids.h");
     let mut feature_consts = String::new();
     for line in header_contents.lines() {
         if let Some(rest) = line.trim().strip_prefix("#define LIBCAMERA_HAS_") {

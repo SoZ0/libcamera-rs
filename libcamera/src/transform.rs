@@ -1,5 +1,5 @@
-use libcamera_sys::*;
 use crate::camera::Orientation;
+use libcamera_sys::*;
 
 /// 2D plane transform matching libcamera::Transform.
 #[derive(Clone, Copy, Debug)]
@@ -56,5 +56,9 @@ impl Transform {
 }
 
 pub fn apply_transform_to_orientation(orientation: Orientation, transform: Transform) -> Orientation {
-    unsafe { libcamera_transform_apply_orientation(orientation.into(), transform.0).try_into().unwrap() }
+    unsafe {
+        libcamera_transform_apply_orientation(orientation.into(), transform.0)
+            .try_into()
+            .unwrap()
+    }
 }

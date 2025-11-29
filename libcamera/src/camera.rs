@@ -344,11 +344,7 @@ impl<'d> Camera<'d> {
         }
         let count = unsafe { libcamera_stream_set_size(set) };
         let streams = (0..count)
-            .filter_map(|i| {
-                unsafe {
-                    NonNull::new(libcamera_stream_set_get(set, i)).map(|p| Stream::from_ptr(p))
-                }
-            })
+            .filter_map(|i| unsafe { NonNull::new(libcamera_stream_set_get(set, i)).map(|p| Stream::from_ptr(p)) })
             .collect();
         unsafe { libcamera_stream_set_destroy(set as *mut _) };
         streams
@@ -371,9 +367,9 @@ impl<'d> Camera<'d> {
         &self,
         roles: &[StreamRole],
     ) -> Option<(CameraConfiguration, StreamRole)> {
-        roles.iter().find_map(|role| {
-            self.generate_configuration(&[*role]).map(|cfg| (cfg, *role))
-        })
+        roles
+            .iter()
+            .find_map(|role| self.generate_configuration(&[*role]).map(|cfg| (cfg, *role)))
     }
 
     /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.

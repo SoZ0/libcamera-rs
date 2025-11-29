@@ -93,11 +93,7 @@ impl CameraManager {
         if self.added_handle.is_null() {
             let data = self.callbacks.as_mut() as *mut _ as *mut _;
             self.added_handle = unsafe {
-                libcamera_camera_manager_camera_added_connect(
-                    self.ptr.as_ptr(),
-                    Some(camera_added_cb),
-                    data,
-                )
+                libcamera_camera_manager_camera_added_connect(self.ptr.as_ptr(), Some(camera_added_cb), data)
             };
         }
     }
@@ -112,11 +108,7 @@ impl CameraManager {
         if self.removed_handle.is_null() {
             let data = self.callbacks.as_mut() as *mut _ as *mut _;
             self.removed_handle = unsafe {
-                libcamera_camera_manager_camera_removed_connect(
-                    self.ptr.as_ptr(),
-                    Some(camera_removed_cb),
-                    data,
-                )
+                libcamera_camera_manager_camera_removed_connect(self.ptr.as_ptr(), Some(camera_removed_cb), data)
             };
         }
     }
@@ -133,21 +125,13 @@ impl CameraManager {
         if self.added_handle.is_null() {
             let data = self.callbacks.as_mut() as *mut _ as *mut _;
             self.added_handle = unsafe {
-                libcamera_camera_manager_camera_added_connect(
-                    self.ptr.as_ptr(),
-                    Some(camera_added_cb),
-                    data,
-                )
+                libcamera_camera_manager_camera_added_connect(self.ptr.as_ptr(), Some(camera_added_cb), data)
             };
         }
         if self.removed_handle.is_null() {
             let data = self.callbacks.as_mut() as *mut _ as *mut _;
             self.removed_handle = unsafe {
-                libcamera_camera_manager_camera_removed_connect(
-                    self.ptr.as_ptr(),
-                    Some(camera_removed_cb),
-                    data,
-                )
+                libcamera_camera_manager_camera_removed_connect(self.ptr.as_ptr(), Some(camera_removed_cb), data)
             };
         }
         rx

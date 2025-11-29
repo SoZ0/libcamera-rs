@@ -1,8 +1,8 @@
 use libcamera::{
     camera_manager::CameraManager,
     color_space::{ColorSpace, Primaries, Range, TransferFunction, YcbcrEncoding},
-    stream::StreamRole,
     logging::LoggingLevel,
+    stream::StreamRole,
 };
 
 fn main() {

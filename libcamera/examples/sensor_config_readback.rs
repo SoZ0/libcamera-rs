@@ -27,7 +27,16 @@ fn main() {
     }
 
     // Example of setting analog crop then reading it back.
-    let mut sensor = cam.generate_configuration(&[StreamRole::StillCapture]).unwrap().sensor_configuration().unwrap_or_default();
-    sensor.set_analog_crop(Rectangle { x: 0, y: 0, width: 640, height: 480 });
+    let mut sensor = cam
+        .generate_configuration(&[StreamRole::StillCapture])
+        .unwrap()
+        .sensor_configuration()
+        .unwrap_or_default();
+    sensor.set_analog_crop(Rectangle {
+        x: 0,
+        y: 0,
+        width: 640,
+        height: 480,
+    });
     println!("Set analog crop to {:?}", sensor.analog_crop());
 }

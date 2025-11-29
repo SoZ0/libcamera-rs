@@ -4,6 +4,7 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include "fence.h"
 
 enum libcamera_frame_metadata_status {
     LIBCAMERA_FRAME_METADATA_STATUS_SUCCESS,
@@ -68,6 +69,7 @@ const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer);
 void libcamera_framebuffer_set_cookie(libcamera_framebuffer_t *framebuffer, uint64_t cookie);
 int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer);
+libcamera_fence_t *libcamera_framebuffer_release_fence_handle(libcamera_framebuffer_t *framebuffer);
 libcamera_request_t *libcamera_framebuffer_request(const libcamera_framebuffer_t *framebuffer);
 
 // --- libcamera_framebuffer_plane_t ---

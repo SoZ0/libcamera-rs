@@ -1,12 +1,10 @@
 //! Demonstrates using acquire fences when queuing requests and releasing fences from framebuffers.
-use std::{
-    os::fd::{AsRawFd, OwnedFd},
-    time::Duration,
-};
 use libc::{poll, pollfd, POLLIN};
+use std::{os::fd::AsRawFd, time::Duration};
 
 use libcamera::{
     camera_manager::CameraManager,
+    fence::Fence,
     framebuffer::AsFrameBuffer,
     framebuffer_allocator::{FrameBuffer, FrameBufferAllocator},
     framebuffer_map::MemoryMappedFrameBuffer,
@@ -56,7 +54,7 @@ fn main() {
         .enumerate()
         .map(|(i, buf)| {
             let mut req = cam.create_request(Some(i as u64)).unwrap();
-            req.add_buffer_with_fence(&stream, buf, None::<OwnedFd>).unwrap();
+            req.add_buffer_with_fence(&stream, buf, None::<Fence>).unwrap();
             req
         })
         .collect::<Vec<_>>();
@@ -88,7 +86,8 @@ fn main() {
         println!("Metadata: {:#?}", fb.metadata());
 
         if let Some(fence) = fb.release_fence() {
-            let fd = fence.as_raw_fd();
+            let fence_fd = fence.into_owned_fd().expect("dup release fence");
+            let fd = fence_fd.as_raw_fd();
             let mut pfd = [pollfd {
                 fd,
                 events: POLLIN,

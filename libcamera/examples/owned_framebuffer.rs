@@ -11,12 +11,7 @@ use libcamera::framebuffer::{AsFrameBuffer, FrameBufferPlane, OwnedFrameBuffer};
 
 fn create_memfd(name: &str, size: usize) -> io::Result<OwnedFd> {
     // Safe: passing null-terminated name and flags, checked for errors.
-    let fd = unsafe {
-        libc::memfd_create(
-            CString::new(name).unwrap().as_ptr() as *const c_char,
-            libc::MFD_CLOEXEC,
-        )
-    };
+    let fd = unsafe { libc::memfd_create(CString::new(name).unwrap().as_ptr() as *const c_char, libc::MFD_CLOEXEC) };
     if fd < 0 {
         return Err(io::Error::last_os_error());
     }
