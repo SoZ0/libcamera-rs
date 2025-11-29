@@ -51,7 +51,7 @@ fn main() {
 
     cam.start(None).expect("start");
     for req in reqs.drain(..) {
-        cam.queue_request(req).unwrap();
+        cam.queue_request(req).map_err(|(_, e)| e).unwrap();
     }
 
     let mut completed = 0;
@@ -62,7 +62,7 @@ fn main() {
         if let Ok(mut req) = rx_req.recv_timeout(Duration::from_millis(500)) {
             println!("requestCompleted seq {}", req.sequence());
             req.reuse(ReuseFlag::REUSE_BUFFERS);
-            cam.queue_request(req).unwrap();
+            cam.queue_request(req).map_err(|(_, e)| e).unwrap();
             completed += 1;
         }
         if rx_disc.try_recv().is_ok() {

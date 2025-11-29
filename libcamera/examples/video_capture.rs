@@ -97,7 +97,7 @@ fn main() {
     // Enqueue all requests to the camera
     for req in reqs {
         println!("Request queued for execution: {req:#?}");
-        cam.queue_request(req).unwrap();
+        cam.queue_request(req).map_err(|(_, e)| e).unwrap();
     }
 
     let mut file = OpenOptions::new()
@@ -128,7 +128,7 @@ fn main() {
 
         // Recycle the request back to the camera for execution
         req.reuse(ReuseFlag::REUSE_BUFFERS);
-        cam.queue_request(req).unwrap();
+        cam.queue_request(req).map_err(|(_, e)| e).unwrap();
 
         count += 1;
     }

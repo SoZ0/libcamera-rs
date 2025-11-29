@@ -618,15 +618,14 @@ impl<'d> ActiveCamera<'d> {
     /// `ActiveCamera::on_request_completed()`.
     ///
     /// Requests that do not have attached framebuffers are invalid and are rejected without being queued.
-    pub fn queue_request(&self, req: Request) -> io::Result<()> {
+    pub fn queue_request(&self, req: Request) -> Result<(), (Request, io::Error)> {
         let ptr = req.ptr.as_ptr();
         // Keep the request alive locally until we know queuing succeeded.
         let mut pending = Some(req);
         let ret = unsafe { libcamera_camera_queue_request(self.ptr.as_ptr(), ptr) };
 
         if ret < 0 {
-            // Drop the request (or let caller re-acquire if we ever change the API) instead of trapping it.
-            Err(io::Error::from_raw_os_error(-ret))
+            Err((pending.take().unwrap(), io::Error::from_raw_os_error(-ret)))
         } else {
             self.state.lock().unwrap().requests.insert(ptr, pending.take().unwrap());
             Ok(())

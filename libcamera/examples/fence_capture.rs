@@ -68,7 +68,7 @@ fn main() {
     cam.start(None).unwrap();
 
     for req in reqs.drain(..) {
-        cam.queue_request(req).unwrap();
+        cam.queue_request(req).map_err(|(_, e)| e).unwrap();
     }
 
     // Recycle buffers a few times to show waiting on release fences before reuse.
@@ -103,6 +103,6 @@ fn main() {
 
         // Reuse the same request to demonstrate fence-aware recycling.
         req.reuse(ReuseFlag::REUSE_BUFFERS);
-        cam.queue_request(req).unwrap();
+        cam.queue_request(req).map_err(|(_, e)| e).unwrap();
     }
 }

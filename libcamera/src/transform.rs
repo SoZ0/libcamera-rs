@@ -6,6 +6,18 @@ use libcamera_sys::*;
 pub struct Transform(pub libcamera_transform_t);
 
 impl Transform {
+    pub fn hflip() -> Self {
+        Transform(unsafe { libcamera_transform_hflip() })
+    }
+    pub fn vflip() -> Self {
+        Transform(unsafe { libcamera_transform_vflip() })
+    }
+    pub fn transpose() -> Self {
+        Transform(unsafe { libcamera_transform_transpose() })
+    }
+}
+
+impl Transform {
     pub fn identity() -> Self {
         Transform(unsafe { libcamera_transform_identity() })
     }
@@ -71,5 +83,33 @@ pub fn orientation_from_rotation(angle: i32) -> Option<Orientation> {
         ori.try_into().ok()
     } else {
         None
+    }
+}
+
+impl core::ops::BitOr for Transform {
+    type Output = Transform;
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Transform(unsafe { libcamera_transform_or(self.0, rhs.0) })
+    }
+}
+
+impl core::ops::BitAnd for Transform {
+    type Output = Transform;
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Transform(unsafe { libcamera_transform_and(self.0, rhs.0) })
+    }
+}
+
+impl core::ops::BitXor for Transform {
+    type Output = Transform;
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Transform(unsafe { libcamera_transform_xor(self.0, rhs.0) })
+    }
+}
+
+impl core::ops::Not for Transform {
+    type Output = Transform;
+    fn not(self) -> Self::Output {
+        Transform(unsafe { libcamera_transform_not(self.0) })
     }
 }

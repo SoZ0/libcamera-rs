@@ -50,4 +50,32 @@ libcamera_orientation_t libcamera_orientation_from_rotation(int angle, bool *suc
     return ori;
 }
 
+libcamera_transform_t libcamera_transform_hflip() {
+    return libcamera::Transform::HFlip;
+}
+
+libcamera_transform_t libcamera_transform_vflip() {
+    return libcamera::Transform::VFlip;
+}
+
+libcamera_transform_t libcamera_transform_transpose() {
+    return libcamera::Transform::Transpose;
+}
+
+libcamera_transform_t libcamera_transform_or(libcamera_transform_t a, libcamera_transform_t b) {
+    return a | b;
+}
+
+libcamera_transform_t libcamera_transform_and(libcamera_transform_t a, libcamera_transform_t b) {
+    return a & b;
+}
+
+libcamera_transform_t libcamera_transform_xor(libcamera_transform_t a, libcamera_transform_t b) {
+    return a ^ b;
+}
+
+libcamera_transform_t libcamera_transform_not(libcamera_transform_t t) {
+    return ~t;
+}
+
 }

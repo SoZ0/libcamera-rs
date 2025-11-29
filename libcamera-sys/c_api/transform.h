@@ -20,6 +20,13 @@ char *libcamera_transform_to_string(libcamera_transform_t transform);
 libcamera_transform_t libcamera_transform_between_orientations(libcamera_orientation_t from, libcamera_orientation_t to);
 libcamera_orientation_t libcamera_transform_apply_orientation(libcamera_orientation_t orientation, libcamera_transform_t transform);
 libcamera_orientation_t libcamera_orientation_from_rotation(int angle, bool *success);
+libcamera_transform_t libcamera_transform_hflip();
+libcamera_transform_t libcamera_transform_vflip();
+libcamera_transform_t libcamera_transform_transpose();
+libcamera_transform_t libcamera_transform_or(libcamera_transform_t a, libcamera_transform_t b);
+libcamera_transform_t libcamera_transform_and(libcamera_transform_t a, libcamera_transform_t b);
+libcamera_transform_t libcamera_transform_xor(libcamera_transform_t a, libcamera_transform_t b);
+libcamera_transform_t libcamera_transform_not(libcamera_transform_t t);
 
 #ifdef __cplusplus
 }

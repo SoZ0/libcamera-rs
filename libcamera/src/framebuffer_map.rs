@@ -71,7 +71,8 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
 
             let info = map_info.get_mut(&fd).unwrap();
 
-            if info.total_len == 0 || offset + len > info.total_len {
+            // If total_len is 0 (unknown for many DMA-BUFs), skip the bound check and let mmap fail if invalid.
+            if info.total_len > 0 && offset + len > info.total_len {
                 return Err(MemoryMappedFrameBufferError::PlaneOutOfBounds {
                     index,
                     offset,

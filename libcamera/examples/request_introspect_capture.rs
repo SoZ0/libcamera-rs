@@ -32,7 +32,7 @@ fn main() {
     });
 
     cam.start(None).expect("start");
-    cam.queue_request(req).expect("queue");
+    cam.queue_request(req).map_err(|(_, e)| e).expect("queue");
 
     match rx.recv_timeout(Duration::from_secs(3)) {
         Ok(mut r) => {

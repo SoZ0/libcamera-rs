@@ -60,7 +60,7 @@ fn main() -> io::Result<()> {
     });
 
     cam.start(None)?;
-    cam.queue_request(req)?;
+    cam.queue_request(req).map_err(|(_, e)| e)?;
 
     if let Ok(mut r) = rx.recv_timeout(Duration::from_secs(3)) {
         println!("Captured request seq {}", r.sequence());

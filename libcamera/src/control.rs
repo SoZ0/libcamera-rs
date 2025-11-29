@@ -7,7 +7,7 @@ use thiserror::Error;
 
 use crate::{
     control_value::{ControlType, ControlValue, ControlValueError},
-    controls::{self, ControlId, ControlIdMap},
+    controls::{self, ControlId},
     properties::{self, PropertyId},
     utils::{UniquePtr, UniquePtrTarget},
 };
@@ -47,6 +47,15 @@ impl<T: ControlEntry> DynControlEntry for T {
 
 #[repr(transparent)]
 pub struct ControlInfo(libcamera_control_info_t);
+
+#[repr(transparent)]
+pub struct ControlIdMap(libcamera_control_id_map_t);
+
+impl ControlIdMap {
+    pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_id_map_t>) -> &'a mut Self {
+        &mut *(ptr.as_ptr() as *mut Self)
+    }
+}
 
 impl ControlInfo {
     pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_info_t>) -> &'a mut Self {

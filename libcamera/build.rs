@@ -7,6 +7,7 @@ use std::{
 use semver::{Comparator, Op, Version};
 
 fn main() {
+    println!("cargo:rustc-check-cfg=cfg(libcamera_has_vendor_controls)");
     let libcamera = match pkg_config::probe_library("libcamera") {
         Ok(lib) => Ok(lib),
         Err(e) => {
@@ -88,6 +89,7 @@ fn main() {
         .map(|p| p.join("libcamera/control_ids.h"))
         .expect("Unable to get libcamera include path");
     let header_contents = fs::read_to_string(&control_ids_header).expect("Failed to read libcamera/control_ids.h");
+    let mut vendor_controls_present = false;
     let mut feature_consts = String::new();
     for line in header_contents.lines() {
         if let Some(rest) = line.trim().strip_prefix("#define LIBCAMERA_HAS_") {
@@ -96,11 +98,17 @@ fn main() {
                 continue;
             }
             feature_consts.push_str(&format!("pub const LIBCAMERA_HAS_{}: bool = true;\n", name));
+            if name.contains("LIBCAMERA_VENDOR_CONTROLS") {
+                vendor_controls_present = true;
+            }
         }
     }
     let features_rs = out_path.join("vendor_features.rs");
     fs::write(&features_rs, feature_consts).expect("Failed to write vendor_features.rs");
     println!("cargo:rerun-if-changed={}", control_ids_header.to_string_lossy());
+    if vendor_controls_present {
+        println!("cargo:rustc-cfg=libcamera_has_vendor_controls");
+    }
 
     // Generate pixel format constants from libcamera/formats.h
     let formats_header = libcamera

@@ -20,5 +20,10 @@ pub mod utils;
 pub mod vendor_features;
 pub mod version;
 
+#[cfg(all(feature = "vendor_rpi", not(libcamera_has_vendor_controls)))]
+compile_error!("feature \"vendor_rpi\" requires libcamera headers that define vendor controls (LIBCAMERA_HAS_*).");
+#[cfg(all(feature = "vendor_draft", not(libcamera_has_vendor_controls)))]
+compile_error!("feature \"vendor_draft\" requires libcamera headers that define vendor controls (LIBCAMERA_HAS_*).");
+
 mod generated;
 pub use generated::*;
