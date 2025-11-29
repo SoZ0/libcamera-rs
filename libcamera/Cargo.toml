@@ -16,9 +16,9 @@ default = ["vendor_draft", "libcamera_semver_versioning"]
 # Fallback to semver compatible libcamera control/property bindings when exact version is unavailable
 libcamera_semver_versioning = []
 
-# Enables draft vendor control/property extensions
+# Enables draft vendor control/property extensions (requires headers that define LIBCAMERA_HAS_* vendor controls)
 vendor_draft = []
-# Enables Raspbbery Pi control/property extensions
+# Enables Raspbbery Pi control/property extensions (requires headers that define LIBCAMERA_HAS_* vendor controls)
 vendor_rpi = []
 
 [dependencies]
