@@ -14,10 +14,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install build prerequisites for libcamera and Rust.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        build-essential git ninja-build meson pkg-config clang \
+        build-essential git ninja-build pkg-config clang \
         python3 python3-pip python3-jinja2 python3-yaml python3-ply \
         libyaml-dev libssl-dev curl ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# Meson from apt on 22.04 is too old for older libcamera tags; upgrade via pip.
+RUN pip3 install --no-cache-dir --upgrade pip meson
 
 # Install libcamera (matching the workflow: only vimc pipeline for speed).
 RUN git clone --depth 1 --branch ${LIBCAMERA_VERSION} https://git.libcamera.org/libcamera/libcamera.git /tmp/libcamera && \

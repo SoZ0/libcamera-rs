@@ -56,7 +56,7 @@ fn main() {
             pre: Default::default(),
         };
 
-        comparator.matches(&libcamera_version)
+        comparator.matches(&libcamera_version) && candidate <= &libcamera_version
     });
 
     // And take the most recent compatible version
@@ -117,8 +117,9 @@ fn main() {
         .map(|p| p.join("libcamera/formats.h"))
         .expect("Unable to get libcamera include path");
     let formats_contents = fs::read_to_string(&formats_header).expect("Failed to read libcamera/formats.h");
-    let mut generated =
-        String::from("// Auto-generated from libcamera/formats.h\nuse crate::pixel_format::PixelFormat;\n\n");
+    let mut generated = String::from(
+        "// Auto-generated from libcamera/formats.h\n#[allow(unused_imports)]\nuse crate::pixel_format::PixelFormat;\n\n",
+    );
     for line in formats_contents.lines() {
         let line = line.trim();
         if !line.starts_with("constexpr PixelFormat") {

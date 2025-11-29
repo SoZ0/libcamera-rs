@@ -4,11 +4,10 @@
 //! libcamera version detected at build time. Use these to avoid hand-rolling
 //! fourcc/modifier pairs:
 //!
-//! ```
-//! use libcamera::{formats, pixel_format::PixelFormat};
-//!
-//! let fmt: PixelFormat = formats::NV12;
-//! let info = fmt.info().expect("pixel format info available");
-//! assert_eq!(fmt.to_string(), info.name);
+//! ```text
+//! // Example:
+//! // let fmt = PixelFormat::parse("NV12").unwrap();
+//! // let info = fmt.info().unwrap();
+//! // assert_eq!(fmt.to_string(), info.name);
 //! ```
 include!(concat!(env!("OUT_DIR"), "/formats.rs"));

@@ -1,3 +1,5 @@
+#![cfg(feature = "vendor_draft")]
+
 use libcamera::vendor_features::flat;
 
 fn main() {
@@ -23,4 +25,9 @@ fn main() {
         "LIBCAMERA_HAS_DEBUG_VENDOR_CONTROLS",
         flat::LIBCAMERA_HAS_DEBUG_VENDOR_CONTROLS
     );
+}
+
+#[cfg(not(feature = "vendor_draft"))]
+fn main() {
+    eprintln!("Enable the `vendor_draft` feature to build this example.");
 }

@@ -1,5 +1,5 @@
-//! Configure a stream using generated pixel format constants and inspect the result.
-use libcamera::{camera_manager::CameraManager, formats, geometry::Size, stream::StreamRole};
+//! Configure a stream using a common pixel format (NV12 if available) and inspect the result.
+use libcamera::{camera_manager::CameraManager, geometry::Size, pixel_format::PixelFormat, stream::StreamRole};
 
 fn main() {
     let mgr = CameraManager::new().expect("camera manager");
@@ -15,7 +15,11 @@ fn main() {
         .expect("generate config");
 
     if let Some(mut cfg) = config.get_mut(0) {
-        cfg.set_pixel_format(formats::NV12);
+        let nv12 = PixelFormat::parse("NV12").unwrap_or_else(|| {
+            eprintln!("NV12 not available; leaving pixel format unchanged");
+            cfg.get_pixel_format()
+        });
+        cfg.set_pixel_format(nv12);
         cfg.set_size(Size::new(640, 480));
     }
 

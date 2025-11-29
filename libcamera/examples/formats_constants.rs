@@ -1,9 +1,12 @@
-//! Show the generated libcamera pixel-format constants and derived layout info.
-use libcamera::{formats, geometry::Size};
+//! Show generated libcamera pixel-format layout info for NV12 (if available).
+use libcamera::{geometry::Size, pixel_format::PixelFormat};
 
 fn main() {
-    let fmt = formats::NV12;
-    println!("Using constant formats::NV12 => {fmt:?}");
+    let fmt = PixelFormat::parse("NV12").unwrap_or_else(|| {
+        eprintln!("NV12 not available in this libcamera build; pick another format");
+        std::process::exit(0);
+    });
+    println!("Using NV12 => {fmt:?}");
 
     let size = Size {
         width: 640,
