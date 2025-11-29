@@ -1,4 +1,5 @@
 #include "request.h"
+#include <libcamera/libcamera.h>
 
 extern "C" {
 
@@ -20,6 +21,14 @@ const libcamera_request_buffer_map_t *libcamera_request_buffers(const libcamera_
 
 int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer) {
     return request->addBuffer(stream, buffer);
+}
+
+int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, int fence_fd) {
+    std::unique_ptr<libcamera::Fence> fence;
+    if (fence_fd >= 0) {
+        fence = std::make_unique<libcamera::Fence>(libcamera::UniqueFD(fence_fd));
+    }
+    return request->addBuffer(stream, buffer, std::move(fence));
 }
 
 libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t *request, const libcamera_stream_t *stream) {

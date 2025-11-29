@@ -54,6 +54,13 @@ uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer
     return framebuffer->cookie();
 }
 
+int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer) {
+    auto fence = framebuffer->releaseFence();
+    if (!fence)
+        return -1;
+    return fence->fd().get();
+}
+
 // --- libcamera_framebuffer_plane_t ---
 int libcamera_framebuffer_plane_fd(libcamera_framebuffer_plane_t *plane) {
     return plane->fd.get();

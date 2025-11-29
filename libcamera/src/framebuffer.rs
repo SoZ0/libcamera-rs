@@ -1,4 +1,8 @@
-use std::{marker::PhantomData, ptr::NonNull};
+use std::{
+    marker::PhantomData,
+    ptr::NonNull,
+    os::fd::{OwnedFd, FromRawFd},
+};
 
 use libcamera_sys::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
@@ -296,6 +300,16 @@ pub trait AsFrameBuffer: Send {
             Immutable(FrameBufferPlanesRef::from_ptr(
                 NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr())).unwrap(),
             ))
+        }
+    }
+
+    /// Releases the acquire fence associated with this framebuffer, if any, returning a file descriptor.
+    fn release_fence(&self) -> Option<OwnedFd> {
+        let fd = unsafe { libcamera_framebuffer_release_fence(self.ptr().as_ptr()) };
+        if fd >= 0 {
+            Some(unsafe { OwnedFd::from_raw_fd(fd) })
+        } else {
+            None
         }
     }
 }

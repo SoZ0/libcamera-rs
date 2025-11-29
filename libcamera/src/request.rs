@@ -1,6 +1,12 @@
 #![allow(clippy::manual_strip)]
 
-use std::{any::Any, collections::HashMap, io, ptr::NonNull};
+use std::{
+    any::Any,
+    collections::HashMap,
+    io,
+    ptr::NonNull,
+    os::fd::IntoRawFd,
+};
 
 use bitflags::bitflags;
 use libcamera_sys::*;
@@ -87,6 +93,25 @@ impl Request {
     pub fn add_buffer<T: AsFrameBuffer + Any>(&mut self, stream: &Stream, buffer: T) -> io::Result<()> {
         let ret =
             unsafe { libcamera_request_add_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr()) };
+        if ret < 0 {
+            Err(io::Error::from_raw_os_error(ret))
+        } else {
+            self.buffers.insert(*stream, Box::new(buffer));
+            Ok(())
+        }
+    }
+
+    /// Attaches framebuffer to the request with an optional acquire fence (fd is consumed).
+    pub fn add_buffer_with_fence<T: AsFrameBuffer + Any, F: IntoRawFd>(
+        &mut self,
+        stream: &Stream,
+        buffer: T,
+        fence_fd: Option<F>,
+    ) -> io::Result<()> {
+        let fd = fence_fd.map(|f| f.into_raw_fd()).unwrap_or(-1);
+        let ret = unsafe {
+            libcamera_request_add_buffer_with_fence(self.ptr.as_ptr(), stream.ptr.as_ptr(), buffer.ptr().as_ptr(), fd)
+        };
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {

@@ -2,6 +2,7 @@ use core::panic;
 use std::{
     env,
     path::{Path, PathBuf},
+    fs,
 };
 
 use semver::{Comparator, Op, Version};
@@ -80,4 +81,26 @@ fn main() {
             selected_version.join(file).to_string_lossy()
         );
     }
+
+    // Generate vendor feature flags from libcamera's generated control_ids.h
+    let control_ids_header = libcamera
+        .include_paths
+        .first()
+        .map(|p| p.join("libcamera/control_ids.h"))
+        .expect("Unable to get libcamera include path");
+    let header_contents = fs::read_to_string(&control_ids_header)
+        .expect("Failed to read libcamera/control_ids.h");
+    let mut feature_consts = String::new();
+    for line in header_contents.lines() {
+        if let Some(rest) = line.trim().strip_prefix("#define LIBCAMERA_HAS_") {
+            let name = rest.split_whitespace().next().unwrap_or("").trim();
+            if name.is_empty() {
+                continue;
+            }
+            feature_consts.push_str(&format!("pub const LIBCAMERA_HAS_{}: bool = true;\n", name));
+        }
+    }
+    let features_rs = out_path.join("vendor_features.rs");
+    fs::write(&features_rs, feature_consts).expect("Failed to write vendor_features.rs");
+    println!("cargo:rerun-if-changed={}", control_ids_header.to_string_lossy());
 }

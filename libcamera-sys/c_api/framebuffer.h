@@ -56,6 +56,7 @@ libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_f
 libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer);
 const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera_framebuffer_t *framebuffer);
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer);
+int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer);
 
 // --- libcamera_framebuffer_plane_t ---
 int libcamera_framebuffer_plane_fd(libcamera_framebuffer_plane_t *plane);

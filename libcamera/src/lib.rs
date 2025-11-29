@@ -10,6 +10,7 @@ pub mod framebuffer_map;
 pub mod geometry;
 pub mod logging;
 pub mod color_space;
+pub mod vendor_features;
 pub mod pixel_format;
 pub mod request;
 pub mod stream;
