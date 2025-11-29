@@ -9,9 +9,17 @@ use libcamera_sys::*;
 
 use crate::{camera::Camera, logging::LoggingLevel, utils::handle_result};
 
+struct ManagerCallbacks {
+    added: Option<Box<dyn FnMut(Camera<'static>) + Send>>,
+    removed: Option<Box<dyn FnMut(Camera<'static>) + Send>>,
+}
+
 /// Camera manager used to enumerate available cameras in the system.
 pub struct CameraManager {
     ptr: NonNull<libcamera_camera_manager_t>,
+    callbacks: Box<ManagerCallbacks>,
+    added_handle: *mut libcamera_callback_handle_t,
+    removed_handle: *mut libcamera_callback_handle_t,
 }
 
 impl CameraManager {
@@ -20,7 +28,12 @@ impl CameraManager {
         let ptr = NonNull::new(unsafe { libcamera_camera_manager_create() }).unwrap();
         let ret = unsafe { libcamera_camera_manager_start(ptr.as_ptr()) };
         handle_result(ret)?;
-        Ok(CameraManager { ptr })
+        Ok(CameraManager {
+            ptr,
+            callbacks: Box::new(ManagerCallbacks { added: None, removed: None }),
+            added_handle: core::ptr::null_mut(),
+            removed_handle: core::ptr::null_mut(),
+        })
     }
 
     /// Returns version string of the linked libcamera.
@@ -49,11 +62,47 @@ impl CameraManager {
             libcamera_log_set_level(category.as_ptr(), level.as_ptr());
         }
     }
+
+    /// Register a callback for camera-added events.
+    pub fn on_camera_added(&mut self, cb: impl FnMut(Camera<'static>) + Send + 'static) {
+        self.callbacks.added = Some(Box::new(cb));
+        if self.added_handle.is_null() {
+            let data = self.callbacks.as_mut() as *mut _ as *mut _;
+            self.added_handle = unsafe {
+                libcamera_camera_manager_camera_added_connect(
+                    self.ptr.as_ptr(),
+                    Some(camera_added_cb),
+                    data,
+                )
+            };
+        }
+    }
+
+    /// Register a callback for camera-removed events.
+    pub fn on_camera_removed(&mut self, cb: impl FnMut(Camera<'static>) + Send + 'static) {
+        self.callbacks.removed = Some(Box::new(cb));
+        if self.removed_handle.is_null() {
+            let data = self.callbacks.as_mut() as *mut _ as *mut _;
+            self.removed_handle = unsafe {
+                libcamera_camera_manager_camera_removed_connect(
+                    self.ptr.as_ptr(),
+                    Some(camera_removed_cb),
+                    data,
+                )
+            };
+        }
+    }
 }
 
 impl Drop for CameraManager {
     fn drop(&mut self) {
         unsafe {
+            if !self.added_handle.is_null() {
+                libcamera_camera_manager_camera_signal_disconnect(self.ptr.as_ptr(), self.added_handle);
+            }
+            if !self.removed_handle.is_null() {
+                libcamera_camera_manager_camera_signal_disconnect(self.ptr.as_ptr(), self.removed_handle);
+            }
             libcamera_camera_manager_stop(self.ptr.as_ptr());
             libcamera_camera_manager_destroy(self.ptr.as_ptr());
         }
@@ -130,3 +179,28 @@ impl<'d> Iterator for CameraListIter<'d> {
 }
 
 impl<'d> ExactSizeIterator for CameraListIter<'d> {}
+
+unsafe extern "C" fn camera_added_cb(data: *mut core::ffi::c_void, cam: *mut libcamera_camera_t) {
+    if data.is_null() || cam.is_null() {
+        return;
+    }
+    // Safety: called from libcamera thread, user must ensure callbacks are Send-safe.
+    let state = &mut *(data as *mut ManagerCallbacks);
+    if let Some(cb) = state.added.as_mut() {
+        if let Some(ptr) = NonNull::new(cam) {
+            cb(unsafe { Camera::from_ptr(ptr) });
+        }
+    }
+}
+
+unsafe extern "C" fn camera_removed_cb(data: *mut core::ffi::c_void, cam: *mut libcamera_camera_t) {
+    if data.is_null() || cam.is_null() {
+        return;
+    }
+    let state = &mut *(data as *mut ManagerCallbacks);
+    if let Some(cb) = state.removed.as_mut() {
+        if let Some(ptr) = NonNull::new(cam) {
+            cb(unsafe { Camera::from_ptr(ptr) });
+        }
+    }
+}

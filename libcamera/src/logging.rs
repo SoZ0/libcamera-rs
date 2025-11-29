@@ -12,6 +12,7 @@ use crate::utils::handle_result;
 pub enum LoggingTarget {
     None,
     Syslog,
+    Stream,
 }
 
 impl From<LoggingTarget> for libcamera_logging_target_t {
@@ -19,6 +20,7 @@ impl From<LoggingTarget> for libcamera_logging_target_t {
         match value {
             LoggingTarget::None => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_NONE,
             LoggingTarget::Syslog => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_SYSLOG,
+            LoggingTarget::Stream => libcamera_logging_target::LIBCAMERA_LOGGING_TARGET_SYSLOG, // Stream target is selected by log_set_stream
         }
     }
 }
@@ -76,4 +78,12 @@ pub fn log_set_stream(stream: LoggingStream, color: bool) -> io::Result<()> {
 pub fn log_set_target(target: LoggingTarget) -> io::Result<()> {
     let ret = unsafe { libcamera_log_set_target(target.into()) };
     handle_result(ret)
+}
+
+/// Convenience: direct logging to stderr and set a default level for the "Camera" category.
+pub fn configure_stderr(category: &str, level: LoggingLevel, color: bool) -> io::Result<()> {
+    log_set_stream(LoggingStream::StdErr, color)?;
+    let cm = crate::camera_manager::CameraManager::new()?;
+    cm.log_set_level(category, level);
+    Ok(())
 }

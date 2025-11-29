@@ -21,6 +21,7 @@ fn main() {
             println!("  Is Input: {:#?}", id.is_input());
             println!("  Is Output: {:#?}", id.is_output());
             println!("  Enumarators: {:?}", id.enumerators_map());
+            println!("  Description: {}", id.description());
         }
     }
 }
