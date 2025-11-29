@@ -350,10 +350,9 @@ impl ControlValue {
             ControlValue::Point(v) => (v.as_ptr().cast(), v.len()),
         };
 
-        let is_array = match self {
-            ControlValue::String(v) => v.len() != 1,
-            _ => len != 1,
-        };
+        // Strings must always be treated as arrays of bytes; passing a scalar causes libcamera to
+        // allocate only one byte. For all other types, keep the previous "len != 1" rule.
+        let is_array = matches!(self, ControlValue::String(_)) || len != 1;
 
         libcamera_control_value_set(val.as_ptr(), self.ty(), data.cast(), is_array, len as _);
     }
