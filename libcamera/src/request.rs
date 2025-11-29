@@ -54,7 +54,7 @@ bitflags! {
 /// reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
 pub struct Request {
     pub(crate) ptr: NonNull<libcamera_request_t>,
-    buffers: HashMap<Stream, (Box<dyn Any + 'static>, *mut libcamera_framebuffer_t)>,
+    buffers: HashMap<Stream, Box<dyn Any + 'static>>,
 }
 
 impl Request {
@@ -96,8 +96,7 @@ impl Request {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
-            let fb_ptr = unsafe { buffer.ptr().as_ptr() };
-            self.buffers.insert(*stream, (Box::new(buffer), fb_ptr));
+            self.buffers.insert(*stream, Box::new(buffer));
             Ok(())
         }
     }
@@ -116,8 +115,7 @@ impl Request {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
-            let fb_ptr = unsafe { buffer.ptr().as_ptr() };
-            self.buffers.insert(*stream, (Box::new(buffer), fb_ptr));
+            self.buffers.insert(*stream, Box::new(buffer));
             Ok(())
         }
     }
@@ -126,20 +124,24 @@ impl Request {
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer<T: 'static>(&self, stream: &Stream) -> Option<&T> {
-        self.buffers.get(stream).and_then(|(b, _)| b.downcast_ref())
+        self.buffers.get(stream).and_then(|b| b.downcast_ref())
     }
 
     /// Returns a mutable reference to the buffer that was attached with [Self::add_buffer()].
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer_mut<T: 'static>(&mut self, stream: &Stream) -> Option<&mut T> {
-        self.buffers.get_mut(stream).and_then(|(b, _)| b.downcast_mut())
+        self.buffers.get_mut(stream).and_then(|b| b.downcast_mut())
     }
 
     pub(crate) fn stream_for_buffer_ptr(&self, fb_ptr: *mut libcamera_framebuffer_t) -> Option<Stream> {
-        self.buffers
-            .iter()
-            .find_map(|(s, (_buf, ptr))| if *ptr == fb_ptr { Some(*s) } else { None })
+        self.buffers_iter()
+            .find_map(|(s, ptr)| if ptr == fb_ptr { Some(s) } else { None })
+    }
+
+    /// Iterate over buffers attached to this request as (Stream, framebuffer pointer).
+    pub fn buffers_iter(&self) -> RequestBufferMapIter<'_> {
+        RequestBufferMapIter::new(self)
     }
 
     /// Returns auto-incrementing sequence number of the capture
@@ -188,3 +190,44 @@ impl Drop for Request {
 }
 
 unsafe impl Send for Request {}
+
+pub struct RequestBufferMapIter<'d> {
+    iter: NonNull<libcamera_request_buffer_map_iter_t>,
+    _phantom: core::marker::PhantomData<&'d libcamera_request_buffer_map_t>,
+}
+
+impl<'d> RequestBufferMapIter<'d> {
+    pub fn new(req: &'d Request) -> Self {
+        let map = unsafe { libcamera_request_buffers(req.ptr.as_ptr()) };
+        let iter = NonNull::new(unsafe { libcamera_request_buffer_map_iter(map.cast_mut()) }).unwrap();
+        Self {
+            iter,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<'d> Iterator for RequestBufferMapIter<'d> {
+    type Item = (Stream, *mut libcamera_framebuffer_t);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if unsafe { libcamera_request_buffer_map_iter_end(self.iter.as_ptr()) } {
+            None
+        } else {
+            let stream = unsafe {
+                Stream::from_ptr(
+                    NonNull::new(libcamera_request_buffer_map_iter_stream(self.iter.as_ptr()) as *mut _).unwrap(),
+                )
+            };
+            let buffer = unsafe { libcamera_request_buffer_map_iter_buffer(self.iter.as_ptr()) };
+            unsafe { libcamera_request_buffer_map_iter_next(self.iter.as_ptr()) };
+            Some((stream, buffer))
+        }
+    }
+}
+
+impl Drop for RequestBufferMapIter<'_> {
+    fn drop(&mut self) {
+        unsafe { libcamera_request_buffer_map_iter_destroy(self.iter.as_ptr()) }
+    }
+}

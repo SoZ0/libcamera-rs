@@ -376,6 +376,13 @@ impl OwnedFrameBuffer {
         };
 
         if let Some(ptr) = NonNull::new(ptr) {
+            // Initialize metadata status sentinel to avoid uninitialized reads.
+            unsafe {
+                libcamera_framebuffer_metadata(ptr.as_ptr())
+                    .cast_mut()
+                    .cast::<u32>()
+                    .write(u32::MAX)
+            };
             Ok(Self { ptr })
         } else {
             for fd in raw_fds {

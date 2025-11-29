@@ -107,3 +107,15 @@ impl AsFrameBuffer for FrameBuffer {
         self.ptr
     }
 }
+
+impl FrameBuffer {
+    /// Retrieve the user cookie associated with this buffer.
+    pub fn cookie(&self) -> u64 {
+        unsafe { libcamera_framebuffer_cookie(self.ptr.as_ptr()) }
+    }
+
+    /// Set a user cookie for this buffer.
+    pub fn set_cookie(&self, cookie: u64) {
+        unsafe { libcamera_framebuffer_set_cookie(self.ptr.as_ptr(), cookie) }
+    }
+}
