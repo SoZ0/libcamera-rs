@@ -24,4 +24,20 @@ libcamera_stream_t *libcamera_stream_configuration_stream(const libcamera_stream
     return config->stream();
 }
 
+bool libcamera_stream_configuration_has_color_space(const libcamera_stream_configuration_t *config) {
+    return config->colorSpace.has_value();
+}
+
+libcamera_color_space_t libcamera_stream_configuration_get_color_space(const libcamera_stream_configuration_t *config) {
+    return config->colorSpace.value_or(libcamera::ColorSpace::Raw);
+}
+
+void libcamera_stream_configuration_set_color_space(libcamera_stream_configuration_t *config, const libcamera_color_space_t *color_space) {
+    if (color_space) {
+        config->colorSpace = *color_space;
+    } else {
+        config->colorSpace.reset();
+    }
+}
+
 }

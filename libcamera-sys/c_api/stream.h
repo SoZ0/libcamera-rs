@@ -3,6 +3,7 @@
 
 #include "geometry.h"
 #include "pixel_format.h"
+#include "color_space.h"
 
 #include <stddef.h>
 
@@ -57,6 +58,9 @@ libcamera_size_range_t libcamera_stream_formats_range(const libcamera_stream_for
 
 const libcamera_stream_formats_t *libcamera_stream_configuration_formats(const libcamera_stream_configuration_t *config);
 libcamera_stream_t *libcamera_stream_configuration_stream(const libcamera_stream_configuration_t *config);
+bool libcamera_stream_configuration_has_color_space(const libcamera_stream_configuration_t *config);
+libcamera_color_space_t libcamera_stream_configuration_get_color_space(const libcamera_stream_configuration_t *config);
+void libcamera_stream_configuration_set_color_space(libcamera_stream_configuration_t *config, const libcamera_color_space_t *color_space);
 
 #ifdef __cplusplus
 }

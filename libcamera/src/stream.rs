@@ -5,6 +5,7 @@ use libcamera_sys::*;
 use crate::{
     geometry::{Size, SizeRange},
     pixel_format::{PixelFormat, PixelFormats},
+    color_space::{ColorSpace},
     utils::Immutable,
 };
 
@@ -144,6 +145,25 @@ impl StreamConfigurationRef<'_> {
         unsafe { self.ptr.as_mut() }.buffer_count = buffer_count;
     }
 
+    /// Returns the configured color space, if any.
+    pub fn get_color_space(&self) -> Option<ColorSpace> {
+        if unsafe { libcamera_stream_configuration_has_color_space(self.ptr.as_ptr()) } {
+            Some(ColorSpace::from(unsafe { libcamera_stream_configuration_get_color_space(self.ptr.as_ptr()) }))
+        } else {
+            None
+        }
+    }
+
+    /// Sets the color space for this stream configuration. Pass `None` to clear it.
+    pub fn set_color_space(&mut self, color_space: Option<ColorSpace>) {
+        unsafe {
+            match color_space {
+                Some(cs) => libcamera_stream_configuration_set_color_space(self.ptr.as_ptr(), &cs.into()),
+                None => libcamera_stream_configuration_set_color_space(self.ptr.as_ptr(), core::ptr::null()),
+            }
+        }
+    }
+
     /// Returns initialized [Stream] for this configuration.
     ///
     /// Stream is only available once this configuration is applied with
@@ -174,6 +194,7 @@ impl core::fmt::Debug for StreamConfigurationRef<'_> {
             .field("stride", &self.get_stride())
             .field("frame_size", &self.get_frame_size())
             .field("buffer_count", &self.get_buffer_count())
+            .field("color_space", &self.get_color_space())
             .finish()
     }
 }
