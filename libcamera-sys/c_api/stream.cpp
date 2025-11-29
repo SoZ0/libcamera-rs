@@ -50,6 +50,12 @@ char *libcamera_stream_configuration_to_string(const libcamera_stream_configurat
     return ::strdup(config->toString().c_str());
 }
 
+const libcamera_stream_configuration_t *libcamera_stream_get_configuration(const libcamera_stream_t *stream) {
+    if (!stream)
+        return nullptr;
+    return &stream->configuration();
+}
+
 size_t libcamera_stream_set_size(const libcamera_stream_set_t *set) {
     return set->streams.size();
 }

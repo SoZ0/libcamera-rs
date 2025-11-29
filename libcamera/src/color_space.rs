@@ -115,6 +115,16 @@ impl ColorSpace {
         *self = cs.into();
         ok
     }
+
+    /// Returns a clone of this color space adjusted for the given pixel format, or None if invalid.
+    pub fn with_adjusted_for_format(&self, pixel_format: crate::pixel_format::PixelFormat) -> Option<Self> {
+        let mut clone = *self;
+        if clone.adjust_for_format(pixel_format) {
+            Some(clone)
+        } else {
+            None
+        }
+    }
 }
 
 impl core::fmt::Display for ColorSpace {

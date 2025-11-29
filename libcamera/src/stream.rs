@@ -105,6 +105,10 @@ impl StreamConfigurationRef<'_> {
         }
     }
 
+    pub(crate) fn as_ptr(&self) -> *const libcamera_stream_configuration_t {
+        self.ptr.as_ptr()
+    }
+
     pub fn get_pixel_format(&self) -> PixelFormat {
         PixelFormat(unsafe { self.ptr.as_ref() }.pixel_format)
     }
@@ -231,6 +235,13 @@ pub struct Stream {
 impl Stream {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_t>) -> Self {
         Self { ptr }
+    }
+
+    /// Returns the active [StreamConfigurationRef] for this stream, if available.
+    pub fn configuration(&self) -> Option<Immutable<StreamConfigurationRef<'_>>> {
+        let cfg = unsafe { libcamera_stream_get_configuration(self.ptr.as_ptr()) };
+        NonNull::new(cfg as *mut libcamera_stream_configuration_t)
+            .map(|p| Immutable(unsafe { StreamConfigurationRef::from_ptr(p) }))
     }
 }
 

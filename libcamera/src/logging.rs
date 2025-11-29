@@ -107,3 +107,17 @@ pub fn configure_logging(target: LoggingTarget, stream: Option<LoggingStream>, c
     }
     Ok(())
 }
+
+/// Convenience: direct logging to stdout and set a default level for the given category.
+pub fn configure_stdout(category: &str, level: LoggingLevel, color: bool) -> io::Result<()> {
+    log_set_stream(LoggingStream::StdOut, color)?;
+    set_category_level(category, level);
+    Ok(())
+}
+
+/// Set the log level for a category without constructing a CameraManager.
+pub fn set_category_level(category: &str, level: LoggingLevel) {
+    let category = CString::new(category).expect("category contains null byte");
+    let level: &CStr = level.into();
+    unsafe { libcamera_log_set_level(category.as_ptr(), level.as_ptr()) };
+}

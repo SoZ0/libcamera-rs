@@ -288,7 +288,7 @@ impl ControlList {
     pub fn from_id_map(map: &ControlIdMap) -> Option<UniquePtr<Self>> {
         unsafe {
             let ptr = libcamera_control_list_create_with_idmap(map.ptr());
-            NonNull::new(ptr).map(|p| UniquePtr::from_raw(p as *mut Self))
+            UniquePtr::from_raw(ptr as *mut Self)
         }
     }
 

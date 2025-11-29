@@ -108,7 +108,8 @@ fn main() {
     let mut count = 0;
     while count < 60 {
         println!("Waiting for camera request execution");
-        let mut req = rx.recv_timeout(Duration::from_secs(2)).expect("Camera request failed");
+        // Allow extra time for slower pipelines/first frame startup.
+        let mut req = rx.recv_timeout(Duration::from_secs(5)).expect("Camera request failed");
 
         println!("Camera request {req:?} completed!");
         println!("Metadata: {:#?}", req.metadata());

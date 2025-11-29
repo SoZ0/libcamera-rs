@@ -1,15 +1,22 @@
 #ifndef __LIBCAMERA_C_TRANSFORM__
 #define __LIBCAMERA_C_TRANSFORM__
 
+#include <stdint.h>
+
+struct libcamera_transform {
+    uint32_t value;
+};
+
+typedef struct libcamera_transform libcamera_transform_t;
+
 #ifdef __cplusplus
 #include "camera.h"
 #include <libcamera/transform.h>
 
-typedef libcamera::Transform libcamera_transform_t;
+static_assert(sizeof(libcamera_transform_t) == sizeof(libcamera::Transform));
+static_assert(alignof(libcamera_transform_t) == alignof(libcamera::Transform));
 
 extern "C" {
-#else
-typedef struct libcamera_transform libcamera_transform_t;
 #endif
 
 libcamera_transform_t libcamera_transform_identity();

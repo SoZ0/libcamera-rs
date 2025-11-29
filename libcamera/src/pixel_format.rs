@@ -3,6 +3,8 @@ use std::{ffi::CStr, ptr::NonNull, str::FromStr};
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
 
+use crate::geometry::Size;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColourEncoding {
     Rgb,
@@ -37,6 +39,10 @@ pub struct PixelFormatInfo {
     pub packed: bool,
     pub pixels_per_group: u32,
     pub planes: Vec<PixelFormatPlaneInfo>,
+    pub v4l2_formats: Vec<u32>,
+}
+
+impl PixelFormatInfo {
 }
 
 /// Represents `libcamera::PixelFormat`, which itself is a pair of fourcc code and u64 modifier as defined in `libdrm`.
@@ -79,9 +85,34 @@ impl PixelFormat {
         self.modifier() != 0
     }
 
+    /// Compute the stride for a plane given width and optional alignment.
+    pub fn stride(&self, width: u32, plane: u32, align: u32) -> u32 {
+        unsafe { libcamera_pixel_format_info_stride(&self.0, width, plane, align) }
+    }
+
+    /// Compute plane size for the given frame size and plane index.
+    pub fn plane_size(&self, size: Size, plane: u32, align: u32) -> u32 {
+        unsafe { libcamera_pixel_format_info_plane_size(&self.0, &size.into(), plane, align) }
+    }
+
+    /// Compute total frame size for the given dimensions.
+    pub fn frame_size(&self, size: Size, align: u32) -> u32 {
+        unsafe { libcamera_pixel_format_info_frame_size(&self.0, &size.into(), align) }
+    }
+
     /// Clears the modifier to zero.
     pub fn clear_modifier(&mut self) {
         self.0.modifier = 0;
+    }
+
+    /// Returns the raw `(fourcc, modifier)` tuple.
+    pub const fn to_raw(self) -> (u32, u64) {
+        (self.0.fourcc, self.0.modifier)
+    }
+
+    /// Constructs a PixelFormat from raw `(fourcc, modifier)` parts.
+    pub const fn from_raw_parts(fourcc: u32, modifier: u64) -> Self {
+        PixelFormat::new(fourcc, modifier)
     }
 
     /// Parse a PixelFormat from its string representation (e.g. "YUYV").
@@ -114,6 +145,8 @@ impl PixelFormat {
                 vertical_sub_sampling: 0,
             }; 3],
             num_planes: 0,
+            v4l2_formats: [0; 8],
+            v4l2_format_count: 0,
         };
         let ok = unsafe { libcamera_pixel_format_info(&self.0, &mut out as *mut _) };
         if !ok {
@@ -134,8 +167,10 @@ impl PixelFormat {
             packed: out.packed,
             pixels_per_group: out.pixels_per_group,
             planes,
+            v4l2_formats: out.v4l2_formats[..out.v4l2_format_count as usize].to_vec(),
         })
     }
+
 }
 
 impl FromStr for PixelFormat {

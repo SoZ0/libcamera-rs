@@ -8,6 +8,8 @@
 #ifdef __cplusplus
 #include <libcamera/controls.h>
 
+typedef libcamera::ControlIdMap libcamera_control_id_map_t;
+
 struct libcamera_control_list_iter {
 	libcamera::ControlList *list;
 	libcamera::ControlList::iterator it;
@@ -22,13 +24,15 @@ struct libcamera_control_id_enumerators_iter {
     std::map<int32_t, std::string>::const_iterator current;
     std::map<int32_t, std::string>::const_iterator end;
 };
+struct libcamera_control_id_map_iter;
+typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
+typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
 
 typedef libcamera::ControlValue libcamera_control_value_t;
 typedef libcamera::ControlList libcamera_control_list_t;
 typedef struct libcamera_control_list_iter libcamera_control_list_iter_t;
 typedef struct libcamera_control_info_map_iter libcamera_control_info_map_iter_t;
 typedef libcamera::ControlInfoMap libcamera_control_info_map_t;
-typedef libcamera::ControlIdMap libcamera_control_id_map_t;
 typedef libcamera::ControlId libcamera_control_id_t;
 typedef libcamera::ControlInfo libcamera_control_info_t;
 
@@ -97,7 +101,6 @@ const char *libcamera_control_id_enumerators_iter_value(const libcamera_control_
 void libcamera_control_id_enumerators_iter_next(libcamera_control_id_enumerators_iter_t *iter);
 void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerators_iter_t *iter);
 // --- libcamera_control_id_map_iter_t ---
-typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
 libcamera_control_id_map_iter_t *libcamera_control_id_map_iter_create(const libcamera_control_id_map_t *map);
 bool libcamera_control_id_map_iter_has_next(const libcamera_control_id_map_iter_t *iter);
 unsigned int libcamera_control_id_map_iter_key(const libcamera_control_id_map_iter_t *iter);

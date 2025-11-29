@@ -178,6 +178,16 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
             })
             .collect())
     }
+
+    /// Returns true if this mapping was created with write access.
+    pub fn is_writable(&self) -> bool {
+        self.writable
+    }
+
+    /// Returns the mapped length for a given file descriptor, if present.
+    pub fn mapped_len(&self, fd: i32) -> Option<usize> {
+        self.mmaps.get(&fd).map(|(_, len, _)| *len)
+    }
 }
 
 impl<T: AsFrameBuffer> AsFrameBuffer for MemoryMappedFrameBuffer<T> {
@@ -191,9 +201,9 @@ unsafe impl<T: AsFrameBuffer> Send for MemoryMappedFrameBuffer<T> {}
 impl<T: AsFrameBuffer> Drop for MemoryMappedFrameBuffer<T> {
     fn drop(&mut self) {
         // Unmap
-        for (_fd, (ptr, size)) in self.mmaps.drain() {
+        for (_fd, (ptr, size, _map_offset)) in self.mmaps.drain() {
             unsafe {
-                libc::munmap(ptr.cast_mut(), size);
+                libc::munmap(ptr, size);
             }
         }
     }

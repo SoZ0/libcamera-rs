@@ -236,8 +236,23 @@ impl CameraConfiguration {
         template: &StreamConfigurationRef<'_>,
     ) -> Option<StreamConfigurationRef<'_>> {
         let ptr =
-            unsafe { libcamera_camera_configuration_add_configuration_from(self.ptr.as_ptr(), template.ptr.as_ptr()) };
+            unsafe { libcamera_camera_configuration_add_configuration_from(self.ptr.as_ptr(), template.as_ptr()) };
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
+    }
+
+    /// Append multiple stream configurations by cloning existing templates.
+    ///
+    /// Returns the newly appended configurations (in order) for further adjustment.
+    pub fn add_configurations_like<'a>(&mut self, templates: &[&StreamConfigurationRef<'a>]) -> Vec<StreamConfigurationRef<'_>> {
+        let mut appended = Vec::with_capacity(templates.len());
+        for tmpl in templates {
+            let ptr =
+                unsafe { libcamera_camera_configuration_add_configuration_from(self.ptr.as_ptr(), tmpl.as_ptr()) };
+            if let Some(cfg) = NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) }) {
+                appended.push(cfg);
+            }
+        }
+        appended
     }
 
     pub fn set_sensor_configuration(&mut self, mode: SensorConfiguration) {

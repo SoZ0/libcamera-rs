@@ -53,7 +53,6 @@ fn main() {
         .flag("-std=c++17")
         .files(c_api_sources)
         .include(libcamera_include_path)
-        .include("../libcamera-git/include")
         .compile("camera_c_api");
 
     // C bindings

@@ -3,15 +3,10 @@
 #include <libcamera/libcamera.h>
 #include <string.h>
 
-struct libcamera_control_id_enumerators_iter {
-    std::map<int32_t, std::string>::const_iterator current;
-    std::map<int32_t, std::string>::const_iterator end;
-};
-
 struct libcamera_control_id_map_iter {
-    const libcamera_control_id_map_t *map;
-    libcamera_control_id_map_t::const_iterator current;
-    libcamera_control_id_map_t::const_iterator end;
+    const libcamera::ControlIdMap *map;
+    libcamera::ControlIdMap::const_iterator current;
+    libcamera::ControlIdMap::const_iterator end;
 };
 
 extern "C" {
