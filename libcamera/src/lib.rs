@@ -16,8 +16,6 @@ pub mod framebuffer;
 pub mod framebuffer_allocator;
 pub mod framebuffer_map;
 pub mod geometry;
-#[cfg(feature = "ipa")]
-pub mod ipa;
 pub mod logging;
 pub mod pixel_format;
 pub mod request;
