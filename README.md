@@ -133,6 +133,21 @@ FrameBuffer metadata: Immutable(
 Written 4147789 bytes to target/image.jpg
 ```
 
+Inspect generated pixel format constants and layout info ([code](./libcamera/examples/formats_constants.rs)):
+```console
+$ cargo run --example formats_constants
+Using constant formats::NV12 => NV12 (NV12)
+bits_per_pixel=12 planes=2 pixels_per_group=2
+frame size for 640x480 (align=0): 460800 bytes
+```
+
+Apply a generated pixel format constant to a stream configuration ([code](./libcamera/examples/configure_formats.rs)):
+```console
+$ cargo run --example configure_formats
+validate status: Valid
+configured: StreamConfigurationRef { pixel_format: NV12, size: Size { width: 640, height: 480 }, stride: 640, frame_size: 460800, buffer_count: 4, color_space: None }, stride=640 frame_size=460800
+```
+
 ## Notes on safety
 
 `libcamera-rs` is intended to be a fully memory-safe wrapper, however, due to `libcamera`'s complexity and many cross-references between objects it is quite hard to ensure total safety so there is very likely to be bugs. Issues and pull requests are welcome.

@@ -33,3 +33,6 @@ thiserror = "1.0"
 [build-dependencies]
 semver = "1.0.22"
 pkg-config = "0.3"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }

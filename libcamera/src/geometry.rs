@@ -20,6 +20,12 @@ pub struct Size {
     pub height: u32,
 }
 
+impl Size {
+    pub const fn new(width: u32, height: u32) -> Self {
+        Self { width, height }
+    }
+}
+
 impl From<libcamera_size_t> for Size {
     fn from(s: libcamera_size_t) -> Self {
         Self {

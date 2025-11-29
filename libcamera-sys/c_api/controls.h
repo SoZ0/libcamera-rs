@@ -115,6 +115,7 @@ enum libcamera_control_type libcamera_property_type_from_id(enum libcamera_prope
 // --- libcamera_control_list_t ---
 libcamera_control_list_t *libcamera_control_list_create();
 libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcamera_control_id_map_t *idmap);
+libcamera_control_list_t *libcamera_control_list_create_with_info_map(const libcamera_control_info_map_t *info_map);
 void libcamera_control_list_destroy(libcamera_control_list_t *list);
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
 void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);

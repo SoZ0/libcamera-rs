@@ -1,3 +1,8 @@
+//! Safe Rust bindings for libcamera.
+//!
+//! Notable helper modules:
+//! - [`formats`](crate::formats): generated pixel format constants matching `libcamera::formats`.
+//! - [`controls`](crate::controls) and [`properties`](crate::properties): generated identifiers for the installed libcamera version.
 #![warn(rust_2018_idioms)]
 
 pub mod camera;

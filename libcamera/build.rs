@@ -74,7 +74,7 @@ fn main() {
 
     let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
 
-    for file in ["controls.rs", "properties.rs"] {
+    for file in ["controls.rs", "properties.rs", "pixel_format_info.rs"] {
         std::fs::copy(selected_version.join(file), out_path.join(file)).unwrap();
         print!(
             "cargo:rerun-if-changed={}",

@@ -243,7 +243,10 @@ impl CameraConfiguration {
     /// Append multiple stream configurations by cloning existing templates.
     ///
     /// Returns the newly appended configurations (in order) for further adjustment.
-    pub fn add_configurations_like<'a>(&mut self, templates: &[&StreamConfigurationRef<'a>]) -> Vec<StreamConfigurationRef<'_>> {
+    pub fn add_configurations_like<'a>(
+        &mut self,
+        templates: &[&StreamConfigurationRef<'a>],
+    ) -> Vec<StreamConfigurationRef<'_>> {
         let mut appended = Vec::with_capacity(templates.len());
         for tmpl in templates {
             let ptr =

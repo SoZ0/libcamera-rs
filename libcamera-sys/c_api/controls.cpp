@@ -177,6 +177,12 @@ libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcame
     return new libcamera::ControlList(*idmap);
 }
 
+libcamera_control_list_t *libcamera_control_list_create_with_info_map(const libcamera_control_info_map_t *info_map) {
+    if (!info_map)
+        return nullptr;
+    return new libcamera::ControlList(*info_map);
+}
+
 void libcamera_control_list_destroy(libcamera_control_list_t *list) {
     delete list;
 }

@@ -90,9 +90,7 @@ fn main() {
 
     println!("Waiting for camera request execution");
     // Allow a bit more time for first exposure/conversion to complete on slower cameras.
-    let req = rx
-        .recv_timeout(Duration::from_secs(5))
-        .expect("Camera request failed");
+    let req = rx.recv_timeout(Duration::from_secs(5)).expect("Camera request failed");
 
     println!("Camera request {req:?} completed!");
     println!("Metadata: {:#?}", req.metadata());

@@ -1,9 +1,14 @@
-use std::{ffi::CStr, ptr::NonNull, str::FromStr};
+use std::{ffi::CStr, fmt, ptr::NonNull, str::FromStr};
 
 use drm_fourcc::{DrmFormat, DrmFourcc, DrmModifier};
 use libcamera_sys::*;
 
 use crate::geometry::Size;
+
+mod pixel_format_info_generated {
+    include!(concat!(env!("OUT_DIR"), "/pixel_format_info.rs"));
+}
+use pixel_format_info_generated::{PixelFormatInfoData, PIXEL_FORMAT_INFO};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ColourEncoding {
@@ -43,6 +48,27 @@ pub struct PixelFormatInfo {
 }
 
 impl PixelFormatInfo {
+    fn from_data(fmt: PixelFormat, data: &PixelFormatInfoData) -> Self {
+        let planes = data
+            .planes
+            .iter()
+            .filter(|p| p.bytes_per_group > 0 && p.vertical_sub_sampling > 0)
+            .map(|p| PixelFormatPlaneInfo {
+                bytes_per_group: p.bytes_per_group,
+                vertical_sub_sampling: p.vertical_sub_sampling,
+            })
+            .collect();
+        Self {
+            name: data.name.to_string(),
+            format: fmt,
+            bits_per_pixel: data.bits_per_pixel,
+            colour_encoding: data.colour_encoding.into(),
+            packed: data.packed,
+            pixels_per_group: data.pixels_per_group,
+            planes,
+            v4l2_formats: data.v4l2_formats.to_vec(),
+        }
+    }
 }
 
 /// Represents `libcamera::PixelFormat`, which itself is a pair of fourcc code and u64 modifier as defined in `libdrm`.
@@ -50,6 +76,13 @@ impl PixelFormatInfo {
 pub struct PixelFormat(pub(crate) libcamera_pixel_format_t);
 
 impl PixelFormat {
+    fn info_entry(&self) -> Option<&'static PixelFormatInfoData> {
+        let (fourcc, modifier) = self.to_raw();
+        PIXEL_FORMAT_INFO
+            .iter()
+            .find(|info| info.fourcc == fourcc && info.modifier == modifier)
+    }
+
     /// Constructs new [PixelFormat] from given fourcc code and modifier.
     ///
     /// # Examples
@@ -87,17 +120,23 @@ impl PixelFormat {
 
     /// Compute the stride for a plane given width and optional alignment.
     pub fn stride(&self, width: u32, plane: u32, align: u32) -> u32 {
-        unsafe { libcamera_pixel_format_info_stride(&self.0, width, plane, align) }
+        self.info_entry()
+            .map(|info| compute_stride(info, width, plane, align))
+            .unwrap_or(0)
     }
 
     /// Compute plane size for the given frame size and plane index.
     pub fn plane_size(&self, size: Size, plane: u32, align: u32) -> u32 {
-        unsafe { libcamera_pixel_format_info_plane_size(&self.0, &size.into(), plane, align) }
+        self.info_entry()
+            .map(|info| compute_plane_size(info, size, plane, align))
+            .unwrap_or(0)
     }
 
     /// Compute total frame size for the given dimensions.
     pub fn frame_size(&self, size: Size, align: u32) -> u32 {
-        unsafe { libcamera_pixel_format_info_frame_size(&self.0, &size.into(), align) }
+        self.info_entry()
+            .map(|info| compute_frame_size(info, size, align))
+            .unwrap_or(0)
     }
 
     /// Clears the modifier to zero.
@@ -133,44 +172,8 @@ impl PixelFormat {
     }
 
     pub fn info(&self) -> Option<PixelFormatInfo> {
-        let mut out = libcamera_pixel_format_info_t {
-            name: core::ptr::null(),
-            format: self.0,
-            bits_per_pixel: 0,
-            colour_encoding: 0,
-            packed: false,
-            pixels_per_group: 0,
-            planes: [libcamera_pixel_format_info__bindgen_ty_1 {
-                bytes_per_group: 0,
-                vertical_sub_sampling: 0,
-            }; 3],
-            num_planes: 0,
-            v4l2_formats: [0; 8],
-            v4l2_format_count: 0,
-        };
-        let ok = unsafe { libcamera_pixel_format_info(&self.0, &mut out as *mut _) };
-        if !ok {
-            return None;
-        }
-        let name = unsafe { CStr::from_ptr(out.name) }.to_string_lossy().into_owned();
-        let planes = (0..out.num_planes as usize)
-            .map(|i| PixelFormatPlaneInfo {
-                bytes_per_group: out.planes[i].bytes_per_group,
-                vertical_sub_sampling: out.planes[i].vertical_sub_sampling,
-            })
-            .collect();
-        Some(PixelFormatInfo {
-            name,
-            format: PixelFormat(out.format),
-            bits_per_pixel: out.bits_per_pixel,
-            colour_encoding: out.colour_encoding.into(),
-            packed: out.packed,
-            pixels_per_group: out.pixels_per_group,
-            planes,
-            v4l2_formats: out.v4l2_formats[..out.v4l2_format_count as usize].to_vec(),
-        })
+        self.info_entry().map(|data| PixelFormatInfo::from_data(*self, data))
     }
-
 }
 
 impl FromStr for PixelFormat {
@@ -196,6 +199,64 @@ impl core::fmt::Debug for PixelFormat {
         f.write_str(out)?;
         unsafe { libc::free(ptr.cast()) };
         Ok(())
+    }
+}
+
+impl fmt::Display for PixelFormat {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+fn compute_stride(info: &PixelFormatInfoData, width: u32, plane: u32, align: u32) -> u32 {
+    if plane as usize >= info.planes.len() {
+        return 0;
+    }
+    let plane_info = &info.planes[plane as usize];
+    if plane_info.bytes_per_group == 0 || plane_info.vertical_sub_sampling == 0 {
+        return 0;
+    }
+    let groups = (width as u64 + info.pixels_per_group as u64 - 1) / info.pixels_per_group as u64;
+    let mut stride = groups * plane_info.bytes_per_group as u64;
+    if align > 0 {
+        stride = ((stride + align as u64 - 1) / align as u64) * align as u64;
+    }
+    stride as u32
+}
+
+fn compute_plane_size(info: &PixelFormatInfoData, size: Size, plane: u32, align: u32) -> u32 {
+    if plane as usize >= info.planes.len() {
+        return 0;
+    }
+    let plane_info = &info.planes[plane as usize];
+    if plane_info.vertical_sub_sampling == 0 {
+        return 0;
+    }
+    let stride = compute_stride(info, size.width, plane, align) as u64;
+    let height = size.height as u64 / plane_info.vertical_sub_sampling as u64;
+    (stride * height) as u32
+}
+
+fn compute_frame_size(info: &PixelFormatInfoData, size: Size, align: u32) -> u32 {
+    let mut total: u64 = 0;
+    for p in 0..info.planes.len() {
+        let plane = &info.planes[p];
+        if plane.bytes_per_group == 0 || plane.vertical_sub_sampling == 0 {
+            continue;
+        }
+        total += compute_plane_size(info, size, p as u32, align) as u64;
+    }
+    total as u32
+}
+
+impl From<u8> for ColourEncoding {
+    fn from(v: u8) -> Self {
+        match v {
+            0 => ColourEncoding::Rgb,
+            1 => ColourEncoding::Yuv,
+            2 => ColourEncoding::Raw,
+            other => ColourEncoding::Unknown(other as u32),
+        }
     }
 }
 

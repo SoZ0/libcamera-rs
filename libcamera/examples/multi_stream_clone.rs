@@ -1,8 +1,5 @@
 //! Demonstrates building a multi-stream configuration by cloning a validated stream config.
-use libcamera::{
-    camera_manager::CameraManager,
-    stream::StreamRole,
-};
+use libcamera::{camera_manager::CameraManager, stream::StreamRole};
 
 fn main() {
     let cm = CameraManager::new().expect("camera manager");

@@ -292,6 +292,13 @@ impl ControlList {
         }
     }
 
+    pub fn from_info_map(info_map: &ControlInfoMap) -> Option<UniquePtr<Self>> {
+        unsafe {
+            let ptr = libcamera_control_list_create_with_info_map(info_map.ptr());
+            UniquePtr::from_raw(ptr as *mut Self)
+        }
+    }
+
     pub(crate) unsafe fn from_ptr<'a>(ptr: NonNull<libcamera_control_list_t>) -> &'a mut Self {
         // Safety: we can cast it because of `#[repr(transparent)]`
         &mut *(ptr.as_ptr() as *mut Self)
