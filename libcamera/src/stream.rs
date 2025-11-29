@@ -125,6 +125,7 @@ impl StreamConfigurationRef<'_> {
         unsafe { self.ptr.as_ref() }.stride
     }
 
+    /// Stride is typically populated by libcamera after validate(); overriding manually is advanced use.
     pub fn set_stride(&mut self, stride: u32) {
         unsafe { self.ptr.as_mut() }.stride = stride
     }
@@ -133,6 +134,7 @@ impl StreamConfigurationRef<'_> {
         unsafe { self.ptr.as_ref() }.frame_size
     }
 
+    /// Frame size is typically populated by libcamera after validate(); overriding manually is advanced use.
     pub fn set_frame_size(&mut self, frame_size: u32) {
         unsafe { self.ptr.as_mut() }.frame_size = frame_size
     }

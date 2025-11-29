@@ -29,18 +29,13 @@ fn main() {
         StreamRole::ViewFinder,
         StreamRole::StillCapture,
     ];
-    let (mut cfgs, _role) = roles_to_try
-        .iter()
-        .find_map(|role| {
-            let mut cfgs = cam.generate_configuration(&[*role])?;
-            cfgs.validate();
-            cfgs.get(0)?;
-            Some((cfgs, *role))
-        })
+    let (mut cfgs, _role) = cam
+        .generate_first_supported_configuration(&roles_to_try)
         .unwrap_or_else(|| {
             eprintln!("No usable stream found for any role; exiting.");
             std::process::exit(1);
         });
+    cfgs.validate();
 
     cam.configure(&mut cfgs).expect("configure");
 

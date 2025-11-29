@@ -216,6 +216,16 @@ impl<'d> Camera<'d> {
         NonNull::new(cfg).map(|p| unsafe { CameraConfiguration::from_ptr(p) })
     }
 
+    /// Try roles in order and return the first generated configuration that succeeds.
+    pub fn generate_first_supported_configuration(
+        &self,
+        roles: &[StreamRole],
+    ) -> Option<(CameraConfiguration, StreamRole)> {
+        roles.iter().find_map(|role| {
+            self.generate_configuration(&[*role]).map(|cfg| (cfg, *role))
+        })
+    }
+
     /// Acquires exclusive rights to the camera, which allows changing configuration and capturing.
     pub fn acquire(&self) -> io::Result<ActiveCamera<'d>> {
         let ret = unsafe { libcamera_camera_acquire(self.ptr.as_ptr()) };
