@@ -14,6 +14,7 @@ fi
 echo "Using CARGO_TARGET_DIR=${CARGO_TARGET_DIR:-target}"
 
 cargo build
+cargo fmt --all -- --check
 cargo test
 cargo clippy --no-deps -- -D warnings
 

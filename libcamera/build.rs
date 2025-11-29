@@ -118,7 +118,9 @@ fn main() {
         .expect("Unable to get libcamera include path");
     let formats_contents = fs::read_to_string(&formats_header).expect("Failed to read libcamera/formats.h");
     let mut generated = String::from(
-        "// Auto-generated from libcamera/formats.h\n#[allow(unused_imports)]\nuse crate::pixel_format::PixelFormat;\n\n",
+        "// Auto-generated from libcamera/formats.h\n\
+#[allow(unused_imports)]\n\
+use crate::pixel_format::PixelFormat;\n\n",
     );
     for line in formats_contents.lines() {
         let line = line.trim();

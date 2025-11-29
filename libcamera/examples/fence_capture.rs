@@ -2,7 +2,6 @@
 use std::{os::fd::AsRawFd, time::Duration};
 
 use libc::{poll, pollfd, POLLIN};
-
 use libcamera::{
     camera_manager::CameraManager,
     fence::Fence,
