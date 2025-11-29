@@ -1,5 +1,6 @@
 #include "request.h"
 #include <libcamera/libcamera.h>
+#include <cstring>
 
 extern "C" {
 
@@ -49,6 +50,14 @@ libcamera_request_status_t libcamera_request_status(const libcamera_request_t *r
 
 void libcamera_request_reuse(libcamera_request_t *request, libcamera_request_reuse_flag_t flags) {
     return request->reuse(flags);
+}
+
+bool libcamera_request_has_pending_buffers(const libcamera_request_t *request) {
+    return request->hasPendingBuffers();
+}
+
+char *libcamera_request_to_string(const libcamera_request_t *request) {
+    return ::strdup(request->toString().c_str());
 }
 
 libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream) {

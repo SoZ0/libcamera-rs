@@ -94,6 +94,10 @@ int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer) {
     return fence->fd().get();
 }
 
+libcamera_request_t *libcamera_framebuffer_request(const libcamera_framebuffer_t *framebuffer) {
+    return framebuffer->request();
+}
+
 // --- libcamera_framebuffer_plane_t ---
 int libcamera_framebuffer_plane_fd(libcamera_framebuffer_plane_t *plane) {
     return plane->fd.get();

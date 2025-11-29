@@ -32,6 +32,7 @@ typedef libcamera::FrameMetadata libcamera_frame_metadata_t;
 typedef libcamera::FrameBuffer::Plane libcamera_framebuffer_plane_t;
 typedef struct libcamera_framebuffer_planes libcamera_framebuffer_planes_t;
 typedef libcamera::FrameBuffer libcamera_framebuffer_t;
+typedef libcamera::Request libcamera_request_t;
 
 static_assert(sizeof(struct libcamera_frame_metadata_plane) == sizeof(libcamera_frame_metadata_plane_t));
 static_assert(offsetof(struct libcamera_frame_metadata_plane, bytes_used) == offsetof(libcamera_frame_metadata_plane_t, bytesused));
@@ -45,6 +46,7 @@ typedef struct libcamera_frame_metadata libcamera_frame_metadata_t;
 typedef struct libcamera_framebuffer_plane libcamera_framebuffer_plane_t;
 typedef struct libcamera_framebuffer_planes libcamera_framebuffer_planes_t;
 typedef struct libcamera_framebuffer libcamera_framebuffer_t;
+typedef struct libcamera_request libcamera_request_t;
 #endif
 
 // --- libcamera_frame_metadata_t ---
@@ -66,6 +68,7 @@ const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer);
 void libcamera_framebuffer_set_cookie(libcamera_framebuffer_t *framebuffer, uint64_t cookie);
 int libcamera_framebuffer_release_fence(libcamera_framebuffer_t *framebuffer);
+libcamera_request_t *libcamera_framebuffer_request(const libcamera_framebuffer_t *framebuffer);
 
 // --- libcamera_framebuffer_plane_t ---
 int libcamera_framebuffer_plane_fd(libcamera_framebuffer_plane_t *plane);

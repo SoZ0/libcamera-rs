@@ -139,6 +139,28 @@ impl Request {
             .find_map(|(s, ptr)| if ptr == fb_ptr { Some(s) } else { None })
     }
 
+    /// Returns the buffer attached to a stream (raw pointer).
+    pub fn find_buffer(&self, stream: &Stream) -> Option<*mut libcamera_framebuffer_t> {
+        let ptr = unsafe { libcamera_request_find_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        NonNull::new(ptr).map(|p| p.as_ptr())
+    }
+
+    pub fn has_pending_buffers(&self) -> bool {
+        unsafe { libcamera_request_has_pending_buffers(self.ptr.as_ptr()) }
+    }
+
+    pub fn to_string_repr(&self) -> String {
+        unsafe {
+            let ptr = libcamera_request_to_string(self.ptr.as_ptr());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
+    }
+
     /// Iterate over buffers attached to this request as (Stream, framebuffer pointer).
     pub fn buffers_iter(&self) -> RequestBufferMapIter<'_> {
         RequestBufferMapIter::new(self)
@@ -175,11 +197,7 @@ impl Request {
 
 impl core::fmt::Debug for Request {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("Request")
-            .field("seq", &self.sequence())
-            .field("status", &self.status())
-            .field("cookie", &self.cookie())
-            .finish()
+        f.write_str(&self.to_string_repr())
     }
 }
 
@@ -212,17 +230,16 @@ impl<'d> Iterator for RequestBufferMapIter<'d> {
 
     fn next(&mut self) -> Option<Self::Item> {
         if unsafe { libcamera_request_buffer_map_iter_end(self.iter.as_ptr()) } {
-            None
-        } else {
-            let stream = unsafe {
-                Stream::from_ptr(
-                    NonNull::new(libcamera_request_buffer_map_iter_stream(self.iter.as_ptr()) as *mut _).unwrap(),
-                )
-            };
-            let buffer = unsafe { libcamera_request_buffer_map_iter_buffer(self.iter.as_ptr()) };
-            unsafe { libcamera_request_buffer_map_iter_next(self.iter.as_ptr()) };
-            Some((stream, buffer))
+            return None;
         }
+        let stream = unsafe {
+            Stream::from_ptr(
+                NonNull::new(libcamera_request_buffer_map_iter_stream(self.iter.as_ptr()) as *mut _).unwrap(),
+            )
+        };
+        let buffer = unsafe { libcamera_request_buffer_map_iter_buffer(self.iter.as_ptr()) };
+        unsafe { libcamera_request_buffer_map_iter_next(self.iter.as_ptr()) };
+        Some((stream, buffer))
     }
 }
 

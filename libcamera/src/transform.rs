@@ -28,7 +28,7 @@ impl Transform {
         Transform(unsafe { libcamera_transform_combine(self.0, other.0) })
     }
 
-    pub fn to_string(self) -> String {
+    pub fn to_string_repr(self) -> String {
         unsafe {
             let ptr = libcamera_transform_to_string(self.0);
             if ptr.is_null() {
@@ -43,6 +43,6 @@ impl Transform {
 
 impl std::fmt::Display for Transform {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&self.to_string())
+        f.write_str(&self.to_string_repr())
     }
 }

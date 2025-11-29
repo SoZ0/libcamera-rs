@@ -54,6 +54,8 @@ uint32_t libcamera_request_sequence(const libcamera_request_t *request);
 uint64_t libcamera_request_cookie(const libcamera_request_t *request);
 libcamera_request_status_t libcamera_request_status(const libcamera_request_t *request);
 void libcamera_request_reuse(libcamera_request_t *request, libcamera_request_reuse_flag_t flags);
+bool libcamera_request_has_pending_buffers(const libcamera_request_t *request);
+char *libcamera_request_to_string(const libcamera_request_t *request);
 
 // --- libcamera_request_buffer_map_t ---
 libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream);

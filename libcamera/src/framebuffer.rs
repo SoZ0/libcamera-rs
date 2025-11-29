@@ -325,6 +325,12 @@ pub trait AsFrameBuffer: Send {
             None
         }
     }
+
+    /// Returns the Request owning this framebuffer, if any.
+    fn request(&self) -> Option<crate::request::Request> {
+        let ptr = unsafe { libcamera_framebuffer_request(self.ptr().as_ptr()) };
+        NonNull::new(ptr).map(|p| unsafe { crate::request::Request::from_ptr(p) })
+    }
 }
 
 /// Description of a framebuffer plane for importing buffers.
