@@ -24,7 +24,7 @@ typedef libcamera::FrameMetadata::Plane libcamera_frame_metadata_plane_t;
 typedef libcamera::Span<libcamera::FrameMetadata::Plane> libcamera_frame_metadata_planes_t;
 typedef libcamera::FrameMetadata libcamera_frame_metadata_t;
 typedef libcamera::FrameBuffer::Plane libcamera_framebuffer_plane_t;
-typedef std::vector<libcamera::FrameBuffer::Plane> libcamera_framebuffer_planes_t;
+typedef struct libcamera_framebuffer_planes libcamera_framebuffer_planes_t;
 typedef libcamera::FrameBuffer libcamera_framebuffer_t;
 
 static_assert(sizeof(struct libcamera_frame_metadata_plane) == sizeof(libcamera_frame_metadata_plane_t));
@@ -53,7 +53,7 @@ size_t libcamera_frame_metadata_planes_size(const libcamera_frame_metadata_plane
 libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_frame_metadata_planes_t *planes, size_t index);
 
 // --- libcamera_framebuffer_t ---
-const libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer);
+libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer);
 const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera_framebuffer_t *framebuffer);
 uint64_t libcamera_framebuffer_cookie(const libcamera_framebuffer_t *framebuffer);
 
@@ -64,6 +64,7 @@ bool libcamera_framebuffer_plane_offset_valid(const libcamera_framebuffer_plane_
 size_t libcamera_framebuffer_plane_length(const libcamera_framebuffer_plane_t *plane);
 
 // --- libcamera_framebuffer_planes_t ---
+void libcamera_framebuffer_planes_destroy(libcamera_framebuffer_planes_t *planes);
 size_t libcamera_framebuffer_planes_size(const libcamera_framebuffer_planes_t *planes);
 libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_at(libcamera_framebuffer_planes_t *planes, size_t index);
 

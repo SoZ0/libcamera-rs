@@ -233,6 +233,12 @@ impl core::fmt::Debug for FrameBufferPlanesRef<'_> {
     }
 }
 
+impl Drop for FrameBufferPlanesRef<'_> {
+    fn drop(&mut self) {
+        unsafe { libcamera_framebuffer_planes_destroy(self.ptr.as_ptr()) }
+    }
+}
+
 impl<'d> IntoIterator for &'d FrameBufferPlanesRef<'d> {
     type Item = Immutable<FrameBufferPlaneRef<'d>>;
 
@@ -288,7 +294,7 @@ pub trait AsFrameBuffer: Send {
     fn planes(&self) -> Immutable<FrameBufferPlanesRef<'_>> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(
-                NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr()).cast_mut()).unwrap(),
+                NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr())).unwrap(),
             ))
         }
     }

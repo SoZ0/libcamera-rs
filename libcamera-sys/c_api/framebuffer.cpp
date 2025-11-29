@@ -1,5 +1,7 @@
 #include "framebuffer.h"
 
+#include <vector>
+
 extern "C" {
 
 // --- libcamera_frame_metadata_t ---
@@ -33,8 +35,15 @@ libcamera_frame_metadata_plane_t *libcamera_frame_metadata_planes_at(libcamera_f
 }
 
 // --- libcamera_framebuffer_t ---
-const libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer) {
-    return &framebuffer->planes();
+struct libcamera_framebuffer_planes {
+    std::vector<libcamera::FrameBuffer::Plane> planes;
+};
+
+libcamera_framebuffer_planes_t *libcamera_framebuffer_planes(const libcamera_framebuffer_t *framebuffer) {
+    auto wrapper = new libcamera_framebuffer_planes_t();
+    const auto planes = framebuffer->planes();
+    wrapper->planes.assign(planes.begin(), planes.end());
+    return wrapper;
 }
 
 const libcamera_frame_metadata_t *libcamera_framebuffer_metadata(const libcamera_framebuffer_t *framebuffer) {
@@ -63,12 +72,16 @@ size_t libcamera_framebuffer_plane_length(const libcamera_framebuffer_plane_t *p
 }
 
 // --- libcamera_framebuffer_planes_t ---
+void libcamera_framebuffer_planes_destroy(libcamera_framebuffer_planes_t *planes) {
+    delete planes;
+}
+
 size_t libcamera_framebuffer_planes_size(const libcamera_framebuffer_planes_t *planes) {
-    return planes->size();
+    return planes->planes.size();
 }
 
 libcamera_framebuffer_plane_t *libcamera_framebuffer_planes_at(libcamera_framebuffer_planes_t *planes, size_t index) {
-    return &planes->at(index);
+    return &planes->planes.at(index);
 }
 
 }
