@@ -50,6 +50,13 @@ libcamera_color_space_t libcamera_color_space_make(enum libcamera_color_space_pr
                                                    enum libcamera_color_space_ycbcr_encoding ycbcr,
                                                    enum libcamera_color_space_range range);
 
+libcamera_color_space_t libcamera_color_space_raw();
+libcamera_color_space_t libcamera_color_space_srgb();
+libcamera_color_space_t libcamera_color_space_sycc();
+libcamera_color_space_t libcamera_color_space_smpte170m();
+libcamera_color_space_t libcamera_color_space_rec709();
+libcamera_color_space_t libcamera_color_space_rec2020();
+
 #ifdef __cplusplus
 }
 #endif

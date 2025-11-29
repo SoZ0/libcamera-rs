@@ -58,13 +58,24 @@ impl ColorSpace {
     }
 
     // Predefined color spaces from libcamera
-    pub const RAW: Self = Self::new(Primaries::Raw, TransferFunction::Linear, YcbcrEncoding::None, Range::Full);
-    pub const SRGB: Self = Self::new(Primaries::Rec709, TransferFunction::Srgb, YcbcrEncoding::Rec601, Range::Full);
-    pub const SMPTE170M: Self =
-        Self::new(Primaries::Smpte170m, TransferFunction::Rec709, YcbcrEncoding::Rec601, Range::Limited);
-    pub const REC709: Self = Self::new(Primaries::Rec709, TransferFunction::Rec709, YcbcrEncoding::Rec709, Range::Limited);
-    pub const REC2020: Self =
-        Self::new(Primaries::Rec2020, TransferFunction::Rec709, YcbcrEncoding::Rec2020, Range::Limited);
+    pub fn raw() -> Self {
+        unsafe { libcamera_color_space_raw() }.into()
+    }
+    pub fn srgb() -> Self {
+        unsafe { libcamera_color_space_srgb() }.into()
+    }
+    pub fn sycc() -> Self {
+        unsafe { libcamera_color_space_sycc() }.into()
+    }
+    pub fn smpte170m() -> Self {
+        unsafe { libcamera_color_space_smpte170m() }.into()
+    }
+    pub fn rec709() -> Self {
+        unsafe { libcamera_color_space_rec709() }.into()
+    }
+    pub fn rec2020() -> Self {
+        unsafe { libcamera_color_space_rec2020() }.into()
+    }
 }
 
 impl From<ColorSpace> for libcamera_color_space_t {
