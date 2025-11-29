@@ -58,6 +58,36 @@ void libcamera_camera_request_completed_disconnect(libcamera_camera_t *cam, libc
     delete handle;
 }
 
+libcamera_callback_handle_t *libcamera_camera_buffer_completed_connect(libcamera_camera_t *cam, libcamera_buffer_completed_cb_t *callback, void *data) {
+    libcamera_callback_handle_t *handle = new libcamera_callback_handle_t {};
+
+    cam->get()->bufferCompleted.connect(handle, [=](libcamera::Request *request, libcamera::FrameBuffer *buffer) {
+        callback(data, request, buffer);
+    });
+
+    return handle;
+}
+
+void libcamera_camera_buffer_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle) {
+    cam->get()->bufferCompleted.disconnect(handle);
+    delete handle;
+}
+
+libcamera_callback_handle_t *libcamera_camera_disconnected_connect(libcamera_camera_t *cam, libcamera_disconnected_cb_t *callback, void *data) {
+    libcamera_callback_handle_t *handle = new libcamera_callback_handle_t {};
+
+    cam->get()->disconnected.connect(handle, [=]() {
+        callback(data);
+    });
+
+    return handle;
+}
+
+void libcamera_camera_disconnected_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle) {
+    cam->get()->disconnected.disconnect(handle);
+    delete handle;
+}
+
 int libcamera_camera_acquire(libcamera_camera_t *cam) {
     return cam->get()->acquire();
 }

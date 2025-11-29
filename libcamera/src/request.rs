@@ -54,7 +54,7 @@ bitflags! {
 /// reused by calling [ActiveCamera::queue_request()](crate::camera::ActiveCamera::queue_request) again.
 pub struct Request {
     pub(crate) ptr: NonNull<libcamera_request_t>,
-    buffers: HashMap<Stream, Box<dyn Any + 'static>>,
+    buffers: HashMap<Stream, (Box<dyn Any + 'static>, *mut libcamera_framebuffer_t)>,
 }
 
 impl Request {
@@ -96,7 +96,8 @@ impl Request {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
-            self.buffers.insert(*stream, Box::new(buffer));
+            let fb_ptr = unsafe { buffer.ptr().as_ptr() };
+            self.buffers.insert(*stream, (Box::new(buffer), fb_ptr));
             Ok(())
         }
     }
@@ -115,7 +116,8 @@ impl Request {
         if ret < 0 {
             Err(io::Error::from_raw_os_error(ret))
         } else {
-            self.buffers.insert(*stream, Box::new(buffer));
+            let fb_ptr = unsafe { buffer.ptr().as_ptr() };
+            self.buffers.insert(*stream, (Box::new(buffer), fb_ptr));
             Ok(())
         }
     }
@@ -124,14 +126,20 @@ impl Request {
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer<T: 'static>(&self, stream: &Stream) -> Option<&T> {
-        self.buffers.get(stream).and_then(|b| b.downcast_ref())
+        self.buffers.get(stream).and_then(|(b, _)| b.downcast_ref())
     }
 
     /// Returns a mutable reference to the buffer that was attached with [Self::add_buffer()].
     ///
     /// `T` must be equal to the type used in [Self::add_buffer()], otherwise this will return None.
     pub fn buffer_mut<T: 'static>(&mut self, stream: &Stream) -> Option<&mut T> {
-        self.buffers.get_mut(stream).and_then(|b| b.downcast_mut())
+        self.buffers.get_mut(stream).and_then(|(b, _)| b.downcast_mut())
+    }
+
+    pub(crate) fn stream_for_buffer_ptr(&self, fb_ptr: *mut libcamera_framebuffer_t) -> Option<Stream> {
+        self.buffers
+            .iter()
+            .find_map(|(s, (_buf, ptr))| if *ptr == fb_ptr { Some(*s) } else { None })
     }
 
     /// Returns auto-incrementing sequence number of the capture

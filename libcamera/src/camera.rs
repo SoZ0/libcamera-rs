@@ -14,7 +14,7 @@ use crate::{
     control::{ControlInfoMap, ControlList, PropertyList},
     geometry::Rectangle,
     request::Request,
-    stream::{StreamConfigurationRef, StreamRole},
+    stream::{Stream, StreamConfigurationRef, StreamRole},
     utils::Immutable,
 };
 
@@ -342,6 +342,41 @@ extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut
     }
 }
 
+extern "C" fn camera_buffer_completed_cb(
+    ptr: *mut core::ffi::c_void,
+    req: *mut libcamera_request_t,
+    fb: *mut libcamera_framebuffer_t,
+) {
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }
+        .lock()
+        .unwrap();
+
+    let (req_ptr, stream) = match state
+        .requests
+        .get_mut(&req)
+        .and_then(|r| r.stream_for_buffer_ptr(fb).map(|s| (r as *mut Request, s)))
+    {
+        Some(v) => v,
+        None => return,
+    };
+
+    if let Some(cb) = state.buffer_completed_cb.as_mut() {
+        // Safety: req_ptr is valid while held in the map; we only borrow it temporarily.
+        unsafe {
+            cb(&mut *req_ptr, stream);
+        }
+    }
+}
+
+extern "C" fn camera_disconnected_cb(ptr: *mut core::ffi::c_void) {
+    let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }
+        .lock()
+        .unwrap();
+    if let Some(cb) = state.disconnected_cb.as_mut() {
+        cb();
+    }
+}
+
 #[derive(Default)]
 struct ActiveCameraState<'d> {
     /// List of queued requests that are yet to be executed.
@@ -349,6 +384,10 @@ struct ActiveCameraState<'d> {
     requests: HashMap<*mut libcamera_request_t, Request>,
     /// Callback for libcamera `requestCompleted` signal.
     request_completed_cb: Option<Box<dyn FnMut(Request) + Send + 'd>>,
+    /// Callback for libcamera `bufferCompleted` signal.
+    buffer_completed_cb: Option<Box<dyn FnMut(&mut Request, Stream) + Send + 'd>>,
+    /// Callback for libcamera `disconnected` signal.
+    disconnected_cb: Option<Box<dyn FnMut() + Send + 'd>>,
 }
 
 /// An active instance of a camera.
@@ -360,6 +399,10 @@ pub struct ActiveCamera<'d> {
     cam: Camera<'d>,
     /// Handle to disconnect `requestCompleted` signal.
     request_completed_handle: *mut libcamera_callback_handle_t,
+    /// Handle to disconnect `bufferCompleted` signal.
+    buffer_completed_handle: *mut libcamera_callback_handle_t,
+    /// Handle to disconnect `disconnected` signal.
+    disconnected_handle: *mut libcamera_callback_handle_t,
     /// Internal state that is shared with callback handlers.
     state: Box<Mutex<ActiveCameraState<'d>>>,
 }
@@ -380,6 +423,8 @@ impl<'d> ActiveCamera<'d> {
         Self {
             cam: Camera::from_ptr(ptr),
             request_completed_handle,
+            buffer_completed_handle: core::ptr::null_mut(),
+            disconnected_handle: core::ptr::null_mut(),
             state,
         }
     }
@@ -394,6 +439,36 @@ impl<'d> ActiveCamera<'d> {
     pub fn on_request_completed(&mut self, cb: impl FnMut(Request) + Send + 'd) {
         let mut state = self.state.lock().unwrap();
         state.request_completed_cb = Some(Box::new(cb));
+    }
+
+    /// Sets a callback for per-buffer completion events.
+    ///
+    /// This fires for every buffer as libcamera emits `bufferCompleted`; the corresponding `Request` remains queued
+    /// until the `requestCompleted` signal fires.
+    pub fn on_buffer_completed(&mut self, cb: impl FnMut(&mut Request, Stream) + Send + 'd) {
+        {
+            let mut state = self.state.lock().unwrap();
+            state.buffer_completed_cb = Some(Box::new(cb));
+        }
+        if self.buffer_completed_handle.is_null() {
+            let data = self.state.as_mut() as *mut Mutex<ActiveCameraState<'_>> as *mut _;
+            self.buffer_completed_handle = unsafe {
+                libcamera_camera_buffer_completed_connect(self.ptr.as_ptr(), Some(camera_buffer_completed_cb), data)
+            };
+        }
+    }
+
+    /// Sets a callback for camera disconnected events.
+    pub fn on_disconnected(&mut self, cb: impl FnMut() + Send + 'd) {
+        {
+            let mut state = self.state.lock().unwrap();
+            state.disconnected_cb = Some(Box::new(cb));
+        }
+        if self.disconnected_handle.is_null() {
+            let data = self.state.as_mut() as *mut Mutex<ActiveCameraState<'_>> as *mut _;
+            self.disconnected_handle =
+                unsafe { libcamera_camera_disconnected_connect(self.ptr.as_ptr(), Some(camera_disconnected_cb), data) };
+        }
     }
 
     /// Applies camera configuration.
@@ -483,6 +558,12 @@ impl Drop for ActiveCamera<'_> {
     fn drop(&mut self) {
         unsafe {
             libcamera_camera_request_completed_disconnect(self.ptr.as_ptr(), self.request_completed_handle);
+            if !self.buffer_completed_handle.is_null() {
+                libcamera_camera_buffer_completed_disconnect(self.ptr.as_ptr(), self.buffer_completed_handle);
+            }
+            if !self.disconnected_handle.is_null() {
+                libcamera_camera_disconnected_disconnect(self.ptr.as_ptr(), self.disconnected_handle);
+            }
             libcamera_camera_stop(self.ptr.as_ptr());
             libcamera_camera_release(self.ptr.as_ptr());
         }

@@ -16,6 +16,8 @@ enum libcamera_camera_configuration_status {
 };
 
 typedef void libcamera_request_completed_cb_t(void*, libcamera_request_t*);
+typedef void libcamera_buffer_completed_cb_t(void*, libcamera_request_t*, libcamera_framebuffer_t*);
+typedef void libcamera_disconnected_cb_t(void*);
 
 /* Mirror libcamera::Orientation (values start at 1 to match EXIF) */
 enum libcamera_orientation {
@@ -69,6 +71,10 @@ void libcamera_camera_destroy(libcamera_camera_t *cam);
 const char *libcamera_camera_id(const libcamera_camera_t *cam);
 libcamera_callback_handle_t *libcamera_camera_request_completed_connect(libcamera_camera_t *cam, libcamera_request_completed_cb_t *callback, void *data);
 void libcamera_camera_request_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle);
+libcamera_callback_handle_t *libcamera_camera_buffer_completed_connect(libcamera_camera_t *cam, libcamera_buffer_completed_cb_t *callback, void *data);
+void libcamera_camera_buffer_completed_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle);
+libcamera_callback_handle_t *libcamera_camera_disconnected_connect(libcamera_camera_t *cam, libcamera_disconnected_cb_t *callback, void *data);
+void libcamera_camera_disconnected_disconnect(libcamera_camera_t *cam, libcamera_callback_handle_t *handle);
 int libcamera_camera_acquire(libcamera_camera_t *cam);
 int libcamera_camera_release(libcamera_camera_t *cam);
 const libcamera_control_info_map_t *libcamera_camera_controls(const libcamera_camera_t *cam);
