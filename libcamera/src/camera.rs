@@ -142,6 +142,22 @@ impl CameraConfiguration {
             .try_into()
             .unwrap()
     }
+
+    /// Re-validate and print stride/frame_size adjustments for each stream (helper for debugging).
+    pub fn validate_and_log(&mut self) -> CameraConfigurationStatus {
+        let status = self.validate();
+        for i in 0..self.len() {
+            if let Some(cfg) = self.get(i) {
+                eprintln!(
+                    "Stream {} after validate(): stride={}, frame_size={}",
+                    i,
+                    cfg.get_stride(),
+                    cfg.get_frame_size()
+                );
+            }
+        }
+        status
+    }
 }
 
 impl core::fmt::Debug for CameraConfiguration {

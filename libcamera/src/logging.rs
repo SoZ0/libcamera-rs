@@ -89,3 +89,14 @@ pub fn configure_stderr(category: &str, level: LoggingLevel, color: bool) -> io:
     cm.log_set_level(category, level);
     Ok(())
 }
+
+/// Convenience: configure logging target and stream without creating a CameraManager.
+pub fn configure_logging(target: LoggingTarget, stream: Option<LoggingStream>, color: bool) -> io::Result<()> {
+    if let Some(s) = stream {
+        log_set_stream(s, color)?;
+        log_set_target(LoggingTarget::Stream)?;
+    } else {
+        log_set_target(target)?;
+    }
+    Ok(())
+}
