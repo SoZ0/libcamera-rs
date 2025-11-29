@@ -61,6 +61,13 @@ impl CameraManager {
         unsafe { CameraList::from_ptr(NonNull::new(libcamera_camera_manager_cameras(self.ptr.as_ptr())).unwrap()) }
     }
 
+    /// Returns a camera by id if present.
+    pub fn get<'a>(&self, id: &str) -> Option<Camera<'a>> {
+        let id_cstr = CString::new(id).ok()?;
+        let cam_ptr = unsafe { libcamera_camera_manager_get_id(self.ptr.as_ptr(), id_cstr.as_ptr()) };
+        NonNull::new(cam_ptr).map(|p| unsafe { Camera::from_ptr(p) })
+    }
+
     /// Set the log level.
     ///
     /// # Parameters
