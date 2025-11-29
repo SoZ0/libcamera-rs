@@ -314,6 +314,13 @@ mod generate_rust {
                 u32::from(*self)
             }
             "#;
+        out += "    pub fn description(&self) -> &'static str {\n        match self {\n";
+        for ctrl in controls.iter() {
+            let desc = ctrl.description.replace('\\', "\\\\").replace('"', "\\\"");
+            out += &vendor_feature_gate(ctrl);
+            out += &format!("            {name}::{} => \"{}\",\n", ctrl.name, desc);
+        }
+        out += "        }\n    }\n";
         out += "}\n";
 
         let mut dyn_variants = String::new();

@@ -885,6 +885,1024 @@ impl ControlId {
     pub fn id(&self) -> u32 {
         u32::from(*self)
     }
+    pub fn description(&self) -> &'static str {
+        match self {
+            ControlId::AeEnable => {
+                "Enable or disable the AEGC algorithm. When this control is set to true,
+both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
+control is set to false then both are set to manual.
+
+If ExposureTimeMode or AnalogueGainMode are also set in the same
+request as AeEnable, then the modes supplied by ExposureTimeMode or
+AnalogueGainMode will take precedence.
+
+\\sa ExposureTimeMode AnalogueGainMode
+"
+            }
+            ControlId::AeState => {
+                "Report the AEGC algorithm state.
+
+The AEGC algorithm computes the exposure time and the analogue gain
+to be applied to the image sensor.
+
+The AEGC algorithm behaviour is controlled by the ExposureTimeMode and
+AnalogueGainMode controls, which allow applications to decide how
+the exposure time and gain are computed, in Auto or Manual mode,
+independently from one another.
+
+The AeState control reports the AEGC algorithm state through a single
+value and describes it as a single computation block which computes
+both the exposure time and the analogue gain values.
+
+When both the exposure time and analogue gain values are configured to
+be in Manual mode, the AEGC algorithm is quiescent and does not actively
+compute any value and the AeState control will report AeStateIdle.
+
+When at least the exposure time or analogue gain are configured to be
+computed by the AEGC algorithm, the AeState control will report if the
+algorithm has converged to stable values for all of the controls set
+to be computed in Auto mode.
+
+\\sa AnalogueGainMode
+\\sa ExposureTimeMode
+"
+            }
+            ControlId::AeMeteringMode => {
+                "Specify a metering mode for the AE algorithm to use.
+
+The metering modes determine which parts of the image are used to
+determine the scene brightness. Metering modes may be platform specific
+and not all metering modes may be supported.
+"
+            }
+            ControlId::AeConstraintMode => {
+                "Specify a constraint mode for the AE algorithm to use.
+
+The constraint modes determine how the measured scene brightness is
+adjusted to reach the desired target exposure. Constraint modes may be
+platform specific, and not all constraint modes may be supported.
+"
+            }
+            ControlId::AeExposureMode => {
+                "Specify an exposure mode for the AE algorithm to use.
+
+The exposure modes specify how the desired total exposure is divided
+between the exposure time and the sensor's analogue gain. They are
+platform specific, and not all exposure modes may be supported.
+
+When one of AnalogueGainMode or ExposureTimeMode is set to Manual,
+the fixed values will override any choices made by AeExposureMode.
+
+\\sa AnalogueGainMode
+\\sa ExposureTimeMode
+"
+            }
+            ControlId::ExposureValue => {
+                "Specify an Exposure Value (EV) parameter.
+
+The EV parameter will only be applied if the AE algorithm is currently
+enabled, that is, at least one of AnalogueGainMode and ExposureTimeMode
+are in Auto mode.
+
+By convention EV adjusts the exposure as log2. For example
+EV = [-2, -1, -0.5, 0, 0.5, 1, 2] results in an exposure adjustment
+of [1/4x, 1/2x, 1/sqrt(2)x, 1x, sqrt(2)x, 2x, 4x].
+
+\\sa AnalogueGainMode
+\\sa ExposureTimeMode
+"
+            }
+            ControlId::ExposureTime => {
+                "Exposure time for the frame applied in the sensor device.
+
+This value is specified in microseconds.
+
+This control will only take effect if ExposureTimeMode is Manual. If
+this control is set when ExposureTimeMode is Auto, the value will be
+ignored and will not be retained.
+
+When reported in metadata, this control indicates what exposure time
+was used for the current frame, regardless of ExposureTimeMode.
+ExposureTimeMode will indicate the source of the exposure time value,
+whether it came from the AE algorithm or not.
+
+\\sa AnalogueGain
+\\sa ExposureTimeMode
+"
+            }
+            ControlId::ExposureTimeMode => {
+                "Controls the source of the exposure time that is applied to the image
+sensor.
+
+When set to Auto, the AE algorithm computes the exposure time and
+configures the image sensor accordingly. When set to Manual, the value
+of the ExposureTime control is used.
+
+When transitioning from Auto to Manual mode and no ExposureTime control
+is provided by the application, the last value computed by the AE
+algorithm when the mode was Auto will be used. If the ExposureTimeMode
+was never set to Auto (either because the camera started in Manual mode,
+or Auto is not supported by the camera), the camera should use a
+best-effort default value.
+
+If ExposureTimeModeManual is supported, the ExposureTime control must
+also be supported.
+
+Cameras that support manual control of the sensor shall support manual
+mode for both ExposureTimeMode and AnalogueGainMode, and shall expose
+the ExposureTime and AnalogueGain controls. If the camera also has an
+AEGC implementation, both ExposureTimeMode and AnalogueGainMode shall
+support both manual and auto mode. If auto mode is available, it shall
+be the default mode. These rules do not apply to black box cameras
+such as UVC cameras, where the available gain and exposure modes are
+completely dependent on what the device exposes.
+
+\\par Flickerless exposure mode transitions
+
+Applications that wish to transition from ExposureTimeModeAuto to direct
+control of the exposure time without causing extra flicker can do so by
+selecting an ExposureTime value as close as possible to the last value
+computed by the auto exposure algorithm in order to avoid any visible
+flickering.
+
+To select the correct value to use as ExposureTime value, applications
+should accommodate the natural delay in applying controls caused by the
+capture pipeline frame depth.
+
+When switching to manual exposure mode, applications should not
+immediately specify an ExposureTime value in the same request where
+ExposureTimeMode is set to Manual. They should instead wait for the
+first Request where ExposureTimeMode is reported as
+ExposureTimeModeManual in the Request metadata, and use the reported
+ExposureTime to populate the control value in the next Request to be
+queued to the Camera.
+
+The implementation of the auto-exposure algorithm should equally try to
+minimize flickering and when transitioning from manual exposure mode to
+auto exposure use the last value provided by the application as starting
+point.
+
+1. Start with ExposureTimeMode set to Auto
+
+2. Set ExposureTimeMode to Manual
+
+3. Wait for the first completed request that has ExposureTimeMode
+set to Manual
+
+4. Copy the value reported in ExposureTime into a new request, and
+submit it
+
+5. Proceed to run manual exposure time as desired
+
+\\sa ExposureTime
+"
+            }
+            ControlId::AnalogueGain => {
+                "Analogue gain value applied in the sensor device.
+
+The value of the control specifies the gain multiplier applied to all
+colour channels. This value cannot be lower than 1.0.
+
+This control will only take effect if AnalogueGainMode is Manual. If
+this control is set when AnalogueGainMode is Auto, the value will be
+ignored and will not be retained.
+
+When reported in metadata, this control indicates what analogue gain
+was used for the current request, regardless of AnalogueGainMode.
+AnalogueGainMode will indicate the source of the analogue gain value,
+whether it came from the AEGC algorithm or not.
+
+\\sa ExposureTime
+\\sa AnalogueGainMode
+"
+            }
+            ControlId::AnalogueGainMode => {
+                "Controls the source of the analogue gain that is applied to the image
+sensor.
+
+When set to Auto, the AEGC algorithm computes the analogue gain and
+configures the image sensor accordingly. When set to Manual, the value
+of the AnalogueGain control is used.
+
+When transitioning from Auto to Manual mode and no AnalogueGain control
+is provided by the application, the last value computed by the AEGC
+algorithm when the mode was Auto will be used. If the AnalogueGainMode
+was never set to Auto (either because the camera started in Manual mode,
+or Auto is not supported by the camera), the camera should use a
+best-effort default value.
+
+If AnalogueGainModeManual is supported, the AnalogueGain control must
+also be supported.
+
+For cameras where we have control over the ISP, both ExposureTimeMode
+and AnalogueGainMode are expected to support manual mode, and both
+controls (as well as ExposureTimeMode and AnalogueGain) are expected to
+be present. If the camera also has an AEGC implementation, both
+ExposureTimeMode and AnalogueGainMode shall support both manual and
+auto mode. If auto mode is available, it shall be the default mode.
+These rules do not apply to black box cameras such as UVC cameras,
+where the available gain and exposure modes are completely dependent on
+what the hardware exposes.
+
+The same procedure described for performing flickerless transitions in
+the ExposureTimeMode control documentation can be applied to analogue
+gain.
+
+\\sa ExposureTimeMode
+\\sa AnalogueGain
+"
+            }
+            ControlId::AeFlickerMode => {
+                "Set the flicker avoidance mode for AGC/AEC.
+
+The flicker mode determines whether, and how, the AGC/AEC algorithm
+attempts to hide flicker effects caused by the duty cycle of artificial
+lighting.
+
+Although implementation dependent, many algorithms for \"flicker
+avoidance\" work by restricting this exposure time to integer multiples
+of the cycle period, wherever possible.
+
+Implementations may not support all of the flicker modes listed below.
+
+By default the system will start in FlickerAuto mode if this is
+supported, otherwise the flicker mode will be set to FlickerOff.
+"
+            }
+            ControlId::AeFlickerPeriod => {
+                "Manual flicker period in microseconds.
+
+This value sets the current flicker period to avoid. It is used when
+AeFlickerMode is set to FlickerManual.
+
+To cancel 50Hz mains flicker, this should be set to 10000 (corresponding
+to 100Hz), or 8333 (120Hz) for 60Hz mains.
+
+Setting the mode to FlickerManual when no AeFlickerPeriod has ever been
+set means that no flicker cancellation occurs (until the value of this
+control is updated).
+
+Switching to modes other than FlickerManual has no effect on the
+value of the AeFlickerPeriod control.
+
+\\sa AeFlickerMode
+"
+            }
+            ControlId::AeFlickerDetected => {
+                "Flicker period detected in microseconds.
+
+The value reported here indicates the currently detected flicker
+period, or zero if no flicker at all is detected.
+
+When AeFlickerMode is set to FlickerAuto, there may be a period during
+which the value reported here remains zero. Once a non-zero value is
+reported, then this is the flicker period that has been detected and is
+now being cancelled.
+
+In the case of 50Hz mains flicker, the value would be 10000
+(corresponding to 100Hz), or 8333 (120Hz) for 60Hz mains flicker.
+
+It is implementation dependent whether the system can continue to detect
+flicker of different periods when another frequency is already being
+cancelled.
+
+\\sa AeFlickerMode
+"
+            }
+            ControlId::Brightness => {
+                "Specify a fixed brightness parameter.
+
+Positive values (up to 1.0) produce brighter images; negative values
+(up to -1.0) produce darker images and 0.0 leaves pixels unchanged.
+"
+            }
+            ControlId::Contrast => {
+                "Specify a fixed contrast parameter.
+
+Normal contrast is given by the value 1.0; larger values produce images
+with more contrast.
+"
+            }
+            ControlId::Lux => {
+                "Report an estimate of the current illuminance level in lux.
+
+The Lux control can only be returned in metadata.
+"
+            }
+            ControlId::AwbEnable => {
+                "Enable or disable the AWB.
+
+When AWB is enabled, the algorithm estimates the colour temperature of
+the scene and computes colour gains and the colour correction matrix
+automatically. The computed colour temperature, gains and correction
+matrix are reported in metadata. The corresponding controls are ignored
+if set in a request.
+
+When AWB is disabled, the colour temperature, gains and correction
+matrix are not updated automatically and can be set manually in
+requests.
+
+\\sa ColourCorrectionMatrix
+\\sa ColourGains
+\\sa ColourTemperature
+"
+            }
+            ControlId::AwbMode => {
+                "Specify the range of illuminants to use for the AWB algorithm.
+
+The modes supported are platform specific, and not all modes may be
+supported.
+"
+            }
+            ControlId::AwbLocked => {
+                "Report the lock status of a running AWB algorithm.
+
+If the AWB algorithm is locked the value shall be set to true, if it's
+converging it shall be set to false. If the AWB algorithm is not
+running the control shall not be present in the metadata control list.
+
+\\sa AwbEnable
+"
+            }
+            ControlId::ColourGains => {
+                "Pair of gain values for the Red and Blue colour channels, in that
+order.
+
+ColourGains can only be applied in a Request when the AWB is disabled.
+If ColourGains is set in a request but ColourTemperature is not, the
+implementation shall calculate and set the ColourTemperature based on
+the ColourGains.
+
+\\sa AwbEnable
+\\sa ColourTemperature
+"
+            }
+            ControlId::ColourTemperature => {
+                "ColourTemperature of the frame, in kelvin.
+
+ColourTemperature can only be applied in a Request when the AWB is
+disabled.
+
+If ColourTemperature is set in a request but ColourGains is not, the
+implementation shall calculate and set the ColourGains based on the
+given ColourTemperature. If ColourTemperature is set (either directly,
+or indirectly by setting ColourGains) but ColourCorrectionMatrix is not,
+the ColourCorrectionMatrix is updated based on the ColourTemperature.
+
+The ColourTemperature used to process the frame is reported in metadata.
+
+\\sa AwbEnable
+\\sa ColourCorrectionMatrix
+\\sa ColourGains
+"
+            }
+            ControlId::Saturation => {
+                "Specify a fixed saturation parameter.
+
+Normal saturation is given by the value 1.0; larger values produce more
+saturated colours; 0.0 produces a greyscale image.
+"
+            }
+            ControlId::SensorBlackLevels => {
+                "Reports the sensor black levels used for processing a frame.
+
+The values are in the order R, Gr, Gb, B. They are returned as numbers
+out of a 16-bit pixel range (as if pixels ranged from 0 to 65535). The
+SensorBlackLevels control can only be returned in metadata.
+"
+            }
+            ControlId::Sharpness => {
+                "Intensity of the sharpening applied to the image.
+
+A value of 0.0 means no sharpening. The minimum value means
+minimal sharpening, and shall be 0.0 unless the camera can't
+disable sharpening completely. The default value shall give a
+\"reasonable\" level of sharpening, suitable for most use cases.
+The maximum value may apply extremely high levels of sharpening,
+higher than anyone could reasonably want. Negative values are
+not allowed. Note also that sharpening is not applied to raw
+streams.
+"
+            }
+            ControlId::FocusFoM => {
+                "Reports a Figure of Merit (FoM) to indicate how in-focus the frame is.
+
+A larger FocusFoM value indicates a more in-focus frame. This singular
+value may be based on a combination of statistics gathered from
+multiple focus regions within an image. The number of focus regions and
+method of combination is platform dependent. In this respect, it is not
+necessarily aimed at providing a way to implement a focus algorithm by
+the application, rather an indication of how in-focus a frame is.
+"
+            }
+            ControlId::ColourCorrectionMatrix => {
+                "The 3x3 matrix that converts camera RGB to sRGB within the imaging
+pipeline.
+
+This should describe the matrix that is used after pixels have been
+white-balanced, but before any gamma transformation. The 3x3 matrix is
+stored in conventional reading order in an array of 9 floating point
+values.
+
+ColourCorrectionMatrix can only be applied in a Request when the AWB is 
+disabled.
+
+\\sa AwbEnable
+\\sa ColourTemperature
+"
+            }
+            ControlId::ScalerCrop => {
+                "Sets the image portion that will be scaled to form the whole of
+the final output image.
+
+The (x,y) location of this rectangle is relative to the
+PixelArrayActiveAreas that is being used. The units remain native
+sensor pixels, even if the sensor is being used in a binning or
+skipping mode.
+
+This control is only present when the pipeline supports scaling. Its
+maximum valid value is given by the properties::ScalerCropMaximum
+property, and the two can be used to implement digital zoom.
+"
+            }
+            ControlId::DigitalGain => {
+                "Digital gain value applied during the processing steps applied
+to the image as captured from the sensor.
+
+The global digital gain factor is applied to all the colour channels
+of the RAW image. Different pipeline models are free to
+specify how the global gain factor applies to each separate
+channel.
+
+If an imaging pipeline applies digital gain in distinct
+processing steps, this value indicates their total sum.
+Pipelines are free to decide how to adjust each processing
+step to respect the received gain factor and shall report
+their total value in the request metadata.
+"
+            }
+            ControlId::FrameDuration => {
+                "The instantaneous frame duration from start of frame exposure to start
+of next exposure, expressed in microseconds.
+
+This control is meant to be returned in metadata.
+"
+            }
+            ControlId::FrameDurationLimits => {
+                "The minimum and maximum (in that order) frame duration, expressed in
+microseconds.
+
+When provided by applications, the control specifies the sensor frame
+duration interval the pipeline has to use. This limits the largest
+exposure time the sensor can use. For example, if a maximum frame
+duration of 33ms is requested (corresponding to 30 frames per second),
+the sensor will not be able to raise the exposure time above 33ms.
+A fixed frame duration is achieved by setting the minimum and maximum
+values to be the same. Setting both values to 0 reverts to using the
+camera defaults.
+
+The maximum frame duration provides the absolute limit to the exposure
+time computed by the AE algorithm and it overrides any exposure mode
+setting specified with controls::AeExposureMode. Similarly, when a
+manual exposure time is set through controls::ExposureTime, it also
+gets clipped to the limits set by this control. When reported in
+metadata, the control expresses the minimum and maximum frame durations
+used after being clipped to the sensor provided frame duration limits.
+
+\\sa AeExposureMode
+\\sa ExposureTime
+
+\\todo Define how to calculate the capture frame rate by
+defining controls to report additional delays introduced by
+the capture pipeline or post-processing stages (ie JPEG
+conversion, frame scaling).
+
+\\todo Provide an explicit definition of default control values, for
+this and all other controls.
+"
+            }
+            ControlId::SensorTemperature => {
+                "Temperature measure from the camera sensor in Celsius.
+
+This value is typically obtained by a thermal sensor present on-die or
+in the camera module. The range of reported temperatures is device
+dependent.
+
+The SensorTemperature control will only be returned in metadata if a
+thermal sensor is present.
+"
+            }
+            ControlId::SensorTimestamp => {
+                "The time when the first row of the image sensor active array is exposed.
+
+The timestamp, expressed in nanoseconds, represents a monotonically
+increasing counter since the system boot time, as defined by the
+Linux-specific CLOCK_BOOTTIME clock id.
+
+The SensorTimestamp control can only be returned in metadata.
+
+\\todo Define how the sensor timestamp has to be used in the reprocessing
+use case.
+"
+            }
+            ControlId::AfMode => {
+                "The mode of the AF (autofocus) algorithm.
+
+An implementation may choose not to implement all the modes.
+"
+            }
+            ControlId::AfRange => {
+                "The range of focus distances that is scanned.
+
+An implementation may choose not to implement all the options here.
+"
+            }
+            ControlId::AfSpeed => {
+                "Determine whether the AF is to move the lens as quickly as possible or
+more steadily.
+
+For example, during video recording it may be desirable not to move the
+lens too abruptly, but when in a preview mode (waiting for a still
+capture) it may be helpful to move the lens as quickly as is reasonably
+possible.
+"
+            }
+            ControlId::AfMetering => {
+                "The parts of the image used by the AF algorithm to measure focus.
+"
+            }
+            ControlId::AfWindows => {
+                "The focus windows used by the AF algorithm when AfMetering is set to
+AfMeteringWindows.
+
+The units used are pixels within the rectangle returned by the
+ScalerCropMaximum property.
+
+In order to be activated, a rectangle must be programmed with non-zero
+width and height. Internally, these rectangles are intersected with the
+ScalerCropMaximum rectangle. If the window becomes empty after this
+operation, then the window is ignored. If all the windows end up being
+ignored, then the behaviour is platform dependent.
+
+On platforms that support the ScalerCrop control (for implementing
+digital zoom, for example), no automatic recalculation or adjustment of
+AF windows is performed internally if the ScalerCrop is changed. If any
+window lies outside the output image after the scaler crop has been
+applied, it is up to the application to recalculate them.
+
+The details of how the windows are used are platform dependent. We note
+that when there is more than one AF window, a typical implementation
+might find the optimal focus position for each one and finally select
+the window where the focal distance for the objects shown in that part
+of the image are closest to the camera.
+"
+            }
+            ControlId::AfTrigger => {
+                "Start an autofocus scan.
+
+This control starts an autofocus scan when AfMode is set to AfModeAuto,
+and is ignored if AfMode is set to AfModeManual or AfModeContinuous. It
+can also be used to terminate a scan early.
+"
+            }
+            ControlId::AfPause => {
+                "Pause lens movements when in continuous autofocus mode.
+
+This control has no effect except when in continuous autofocus mode
+(AfModeContinuous). It can be used to pause any lens movements while
+(for example) images are captured. The algorithm remains inactive
+until it is instructed to resume.
+"
+            }
+            ControlId::LensPosition => {
+                "Set and report the focus lens position.
+
+This control instructs the lens to move to a particular position and
+also reports back the position of the lens for each frame.
+
+The LensPosition control is ignored unless the AfMode is set to
+AfModeManual, though the value is reported back unconditionally in all
+modes.
+
+This value, which is generally a non-integer, is the reciprocal of the
+focal distance in metres, also known as dioptres. That is, to set a
+focal distance D, the lens position LP is given by
+
+\\f$LP = \\frac{1\\mathrm{m}}{D}\\f$
+
+For example:
+
+- 0 moves the lens to infinity.
+- 0.5 moves the lens to focus on objects 2m away.
+- 2 moves the lens to focus on objects 50cm away.
+- And larger values will focus the lens closer.
+
+The default value of the control should indicate a good general
+position for the lens, often corresponding to the hyperfocal distance
+(the closest position for which objects at infinity are still
+acceptably sharp). The minimum will often be zero (meaning infinity),
+and the maximum value defines the closest focus position.
+
+\\todo Define a property to report the Hyperfocal distance of calibrated
+lenses.
+"
+            }
+            ControlId::AfState => {
+                "The current state of the AF algorithm.
+
+This control reports the current state of the AF algorithm in
+conjunction with the reported AfMode value and (in continuous AF mode)
+the AfPauseState value. The possible state changes are described below,
+though we note the following state transitions that occur when the
+AfMode is changed.
+
+If the AfMode is set to AfModeManual, then the AfState will always
+report AfStateIdle (even if the lens is subsequently moved). Changing
+to the AfModeManual state does not initiate any lens movement.
+
+If the AfMode is set to AfModeAuto then the AfState will report
+AfStateIdle. However, if AfModeAuto and AfTriggerStart are sent
+together then AfState will omit AfStateIdle and move straight to
+AfStateScanning (and start a scan).
+
+If the AfMode is set to AfModeContinuous then the AfState will
+initially report AfStateScanning.
+"
+            }
+            ControlId::AfPauseState => {
+                "Report whether the autofocus is currently running, paused or pausing.
+
+This control is only applicable in continuous (AfModeContinuous) mode,
+and reports whether the algorithm is currently running, paused or
+pausing (that is, will pause as soon as any in-progress scan
+completes).
+
+Any change to AfMode will cause AfPauseStateRunning to be reported.
+"
+            }
+            ControlId::HdrMode => {
+                "Set the mode to be used for High Dynamic Range (HDR) imaging.
+
+HDR techniques typically include multiple exposure, image fusion and
+tone mapping techniques to improve the dynamic range of the resulting
+images.
+
+When using an HDR mode, images are captured with different sets of AGC
+settings called HDR channels. Channels indicate in particular the type
+of exposure (short, medium or long) used to capture the raw image,
+before fusion. Each HDR image is tagged with the corresponding channel
+using the HdrChannel control.
+
+\\sa HdrChannel
+"
+            }
+            ControlId::HdrChannel => {
+                "The HDR channel used to capture the frame.
+
+This value is reported back to the application so that it can discover
+whether this capture corresponds to the short or long exposure image
+(or any other image used by the HDR procedure). An application can
+monitor the HDR channel to discover when the differently exposed images
+have arrived.
+
+This metadata is only available when an HDR mode has been enabled.
+
+\\sa HdrMode
+"
+            }
+            ControlId::Gamma => {
+                "Specify a fixed gamma value.
+
+The default gamma value must be 2.2 which closely mimics sRGB gamma.
+Note that this is camera gamma, so it is applied as 1.0/gamma.
+"
+            }
+            ControlId::DebugMetadataEnable => "Enable or disable the debug metadata.
+",
+            ControlId::FrameWallClock => {
+                "This timestamp corresponds to the same moment in time as the
+SensorTimestamp, but is represented as a wall clock time as measured by
+the CLOCK_REALTIME clock. Like SensorTimestamp, the timestamp value is
+expressed in nanoseconds.
+
+Being a wall clock measurement, it can be used to synchronise timing
+across different devices.
+
+\\sa SensorTimestamp
+
+The FrameWallClock control can only be returned in metadata.
+"
+            }
+            ControlId::WdrMode => {
+                "Set the WDR mode.
+
+The WDR mode is used to select the algorithm used for global tone
+mapping. It will automatically reduce the exposure time of the sensor
+so that there are only a small number of saturated pixels in the image.
+The algorithm then compensates for the loss of brightness by applying a
+global tone mapping curve to the image.
+"
+            }
+            ControlId::WdrStrength => {
+                "Specify the strength of the wdr algorithm. The exact meaning of this
+value is specific to the algorithm in use. Usually a value of 0 means no
+global tone mapping is applied. A values of 1 is the default value and
+the correct value for most scenes. A value above 1 increases the global
+tone mapping effect and can lead to unrealistic image effects.
+"
+            }
+            ControlId::WdrMaxBrightPixels => {
+                "Percentage of allowed (nearly) saturated pixels. The WDR algorithm
+reduces the WdrExposureValue until the amount of pixels that are close
+to saturation is lower than this value.
+"
+            }
+            ControlId::LensDewarpEnable => {
+                "Enable or disable lens dewarping. This control is only available if lens
+dewarp parameters are configured in the tuning file.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::AePrecaptureTrigger => {
+                "Control for AE metering trigger. Currently identical to
+ANDROID_CONTROL_AE_PRECAPTURE_TRIGGER.
+
+Whether the camera device will trigger a precapture metering sequence
+when it processes this request.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::NoiseReductionMode => {
+                "Control to select the noise reduction algorithm mode. Currently
+identical to ANDROID_NOISE_REDUCTION_MODE.
+
+ Mode of operation for the noise reduction algorithm.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::ColorCorrectionAberrationMode => {
+                "Control to select the color correction aberration mode. Currently
+identical to ANDROID_COLOR_CORRECTION_ABERRATION_MODE.
+
+ Mode of operation for the chromatic aberration correction algorithm.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::AwbState => {
+                "Control to report the current AWB algorithm state. Currently identical
+to ANDROID_CONTROL_AWB_STATE.
+
+ Current state of the AWB algorithm.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::SensorRollingShutterSkew => {
+                "Control to report the time between the start of exposure of the first
+row and the start of exposure of the last row. Currently identical to
+ANDROID_SENSOR_ROLLING_SHUTTER_SKEW
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::LensShadingMapMode => {
+                "Control to report if the lens shading map is available. Currently
+identical to ANDROID_STATISTICS_LENS_SHADING_MAP_MODE.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::PipelineDepth => {
+                "Specifies the number of pipeline stages the frame went through from when
+it was exposed to when the final completed result was available to the
+framework. Always less than or equal to PipelineMaxDepth. Currently
+identical to ANDROID_REQUEST_PIPELINE_DEPTH.
+
+The typical value for this control is 3 as a frame is first exposed,
+captured and then processed in a single pass through the ISP. Any
+additional processing step performed after the ISP pass (in example face
+detection, additional format conversions etc) count as an additional
+pipeline stage.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::MaxLatency => {
+                "The maximum number of frames that can occur after a request (different
+than the previous) has been submitted, and before the result's state
+becomes synchronized. A value of -1 indicates unknown latency, and 0
+indicates per-frame control. Currently identical to
+ANDROID_SYNC_MAX_LATENCY.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::TestPatternMode => {
+                "Control to select the test pattern mode. Currently identical to
+ANDROID_SENSOR_TEST_PATTERN_MODE.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::FaceDetectMode => {
+                "Control to select the face detection mode used by the pipeline.
+
+Currently identical to ANDROID_STATISTICS_FACE_DETECT_MODE.
+
+\\sa FaceDetectFaceRectangles
+\\sa FaceDetectFaceScores
+\\sa FaceDetectFaceLandmarks
+\\sa FaceDetectFaceIds
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::FaceDetectFaceRectangles => {
+                "Boundary rectangles of the detected faces. The number of values is
+the number of detected faces.
+
+The FaceDetectFaceRectangles control can only be returned in metadata.
+
+Currently identical to ANDROID_STATISTICS_FACE_RECTANGLES.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::FaceDetectFaceScores => {
+                "Confidence score of each of the detected faces. The range of score is
+[0, 100]. The number of values should be the number of faces reported
+in FaceDetectFaceRectangles.
+
+The FaceDetectFaceScores control can only be returned in metadata.
+
+Currently identical to ANDROID_STATISTICS_FACE_SCORES.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::FaceDetectFaceLandmarks => {
+                "Array of human face landmark coordinates in format [..., left_eye_i,
+right_eye_i, mouth_i, left_eye_i+1, ...], with i = index of face. The
+number of values should be 3 * the number of faces reported in
+FaceDetectFaceRectangles.
+
+The FaceDetectFaceLandmarks control can only be returned in metadata.
+
+Currently identical to ANDROID_STATISTICS_FACE_LANDMARKS.
+"
+            }
+            #[cfg(feature = "vendor_draft")]
+            ControlId::FaceDetectFaceIds => {
+                "Each detected face is given a unique ID that is valid for as long as the
+face is visible to the camera device. A face that leaves the field of
+view and later returns may be assigned a new ID. The number of values
+should be the number of faces reported in FaceDetectFaceRectangles.
+
+The FaceDetectFaceIds control can only be returned in metadata.
+
+Currently identical to ANDROID_STATISTICS_FACE_IDS.
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::StatsOutputEnable => {
+                "Toggles the Raspberry Pi IPA to output the hardware generated statistics.
+
+When this control is set to true, the IPA outputs a binary dump of the
+hardware generated statistics through the Request metadata in the
+Bcm2835StatsOutput control.
+
+\\sa Bcm2835StatsOutput
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::Bcm2835StatsOutput => {
+                "Span of the BCM2835 ISP generated statistics for the current frame.
+
+This is sent in the Request metadata if the StatsOutputEnable is set to
+true.  The statistics struct definition can be found in
+include/linux/bcm2835-isp.h.
+
+\\sa StatsOutputEnable
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::ScalerCrops => {
+                "An array of rectangles, where each singular value has identical
+functionality to the ScalerCrop control. This control allows the
+Raspberry Pi pipeline handler to control individual scaler crops per
+output stream.
+
+The order of rectangles passed into the control must match the order of
+streams configured by the application. The pipeline handler will only
+configure crop retangles up-to the number of output streams configured.
+All subsequent rectangles passed into this control are ignored by the
+pipeline handler.
+
+If both rpi::ScalerCrops and ScalerCrop controls are present in a
+ControlList, the latter is discarded, and crops are obtained from this
+control.
+
+Note that using different crop rectangles for each output stream with
+this control is only applicable on the Pi5/PiSP platform. This control
+should also be considered temporary/draft and will be replaced with
+official libcamera API support for per-stream controls in the future.
+
+\\sa ScalerCrop
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::PispStatsOutput => {
+                "Span of the PiSP Frontend ISP generated statistics for the current
+frame. This is sent in the Request metadata if the StatsOutputEnable is
+set to true. The statistics struct definition can be found in
+https://github.com/raspberrypi/libpisp/blob/main/src/libpisp/frontend/pisp_statistics.h
+
+\\sa StatsOutputEnable
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::SyncMode => {
+                "Enable or disable camera synchronisation (\"sync\") mode.
+
+When sync mode is enabled, a camera will synchronise frames temporally
+with other cameras, either attached to the same device or a different
+one. There should be one \"server\" device, which broadcasts timing
+information to one or more \"clients\". Communication is one-way, from
+server to clients only, and it is only clients that adjust their frame
+timings to match the server.
+
+Sync mode requires all cameras to be running at (as far as possible) the
+same fixed framerate. Clients may continue to make adjustments to keep
+their cameras synchronised with the server for the duration of the
+session, though any updates after the initial ones should remain small.
+
+\\sa SyncReady
+\\sa SyncTimer
+\\sa SyncFrames
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::SyncReady => {
+                "When using the camera synchronisation algorithm, the server broadcasts
+timing information to the clients. This also includes the time (some
+number of frames in the future, called the \"ready time\") at which the
+server will signal its controlling application, using this control, to
+start using the image frames.
+
+The client receives the \"ready time\" from the server, and will signal
+its application to start using the frames at this same moment.
+
+While this control value is false, applications (on both client and
+server) should continue to wait, and not use the frames.
+
+Once this value becomes true, it means that this is the first frame
+where the server and its clients have agreed that they will both be
+synchronised and that applications should begin consuming frames.
+Thereafter, this control will continue to signal the value true for
+the rest of the session.
+
+\\sa SyncMode
+\\sa SyncTimer
+\\sa SyncFrames
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::SyncTimer => {
+                "This reports the amount of time, in microseconds, until the \"ready
+time\", at which the server and client will signal their controlling
+applications that the frames are now synchronised and should be
+used. The value may be refined slightly over time, becoming more precise
+as the \"ready time\" approaches.
+
+Servers always report this value, whereas clients will omit this control
+until they have received a message from the server that enables them to
+calculate it.
+
+Normally the value will start positive (the \"ready time\" is in the
+future), and decrease towards zero, before becoming negative (the \"ready
+time\" has elapsed). So there should be just one frame where the timer
+value is, or is very close to, zero - the one for which the SyncReady
+control becomes true. At this moment, the value indicates how closely
+synchronised the client believes it is with the server.
+
+But note that if frames are being dropped, then the \"near zero\" valued
+frame, or indeed any other, could be skipped. In these cases the timer
+value allows an application to deduce that this has happened.
+
+\\sa SyncMode
+\\sa SyncReady
+\\sa SyncFrames
+"
+            }
+            #[cfg(feature = "vendor_rpi")]
+            ControlId::SyncFrames => {
+                "The number of frames the server should wait, after enabling
+SyncModeServer, before signalling (via the SyncReady control) that
+frames should be used. This therefore determines the \"ready time\" for
+all synchronised cameras.
+
+This control value should be set only for the device that is to act as
+the server, before or at the same moment at which SyncModeServer is
+enabled.
+
+\\sa SyncMode
+\\sa SyncReady
+\\sa SyncTimer
+"
+            }
+        }
+    }
 }
 /// Enable or disable the AEGC algorithm. When this control is set to true,
 /// both ExposureTimeMode and AnalogueGainMode are set to auto, and if this
