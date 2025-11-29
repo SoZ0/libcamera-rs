@@ -6,6 +6,7 @@ pub mod color_space;
 pub mod control;
 pub mod control_value;
 pub mod fence;
+pub mod formats;
 pub mod framebuffer;
 pub mod framebuffer_allocator;
 pub mod framebuffer_map;

@@ -1,11 +1,80 @@
 #![allow(clippy::manual_strip)]
 
-use std::{any::Any, collections::HashMap, io, ptr::NonNull};
+use std::{any::Any, collections::HashMap, io, marker::PhantomData, ptr::NonNull};
 
 use bitflags::bitflags;
 use libcamera_sys::*;
 
 use crate::{control::ControlList, fence::Fence, framebuffer::AsFrameBuffer, stream::Stream};
+
+/// Non-owning view of a libcamera request.
+pub struct RequestRef<'d> {
+    pub(crate) ptr: NonNull<libcamera_request_t>,
+    _phantom: PhantomData<&'d ()>,
+}
+
+impl<'d> RequestRef<'d> {
+    pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_request_t>) -> Self {
+        Self {
+            ptr,
+            _phantom: Default::default(),
+        }
+    }
+
+    pub fn controls(&self) -> &ControlList {
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_controls(self.ptr.as_ptr())).unwrap()) }
+    }
+
+    pub fn metadata(&self) -> &ControlList {
+        unsafe { ControlList::from_ptr(NonNull::new(libcamera_request_metadata(self.ptr.as_ptr())).unwrap()) }
+    }
+
+    pub fn find_buffer(&self, stream: &Stream) -> Option<*mut libcamera_framebuffer_t> {
+        let ptr = unsafe { libcamera_request_find_buffer(self.ptr.as_ptr(), stream.ptr.as_ptr()) };
+        NonNull::new(ptr).map(|p| p.as_ptr())
+    }
+
+    pub fn has_pending_buffers(&self) -> bool {
+        unsafe { libcamera_request_has_pending_buffers(self.ptr.as_ptr()) }
+    }
+
+    pub fn to_string_repr(&self) -> String {
+        unsafe {
+            let ptr = libcamera_request_to_string(self.ptr.as_ptr());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
+    }
+
+    /// Iterate over buffers attached to this request as (Stream, framebuffer pointer).
+    pub fn buffers_iter(&self) -> RequestBufferMapIter<'_> {
+        RequestBufferMapIter::new(self.ptr)
+    }
+
+    /// Returns auto-incrementing sequence number of the capture
+    pub fn sequence(&self) -> u32 {
+        unsafe { libcamera_request_sequence(self.ptr.as_ptr()) }
+    }
+
+    /// Returns request identifier that was provided in
+    /// [ActiveCamera::create_request()](crate::camera::ActiveCamera::create_request).
+    ///
+    /// Returns zero if cookie was not provided.
+    pub fn cookie(&self) -> u64 {
+        unsafe { libcamera_request_cookie(self.ptr.as_ptr()) }
+    }
+
+    /// Capture request status
+    pub fn status(&self) -> RequestStatus {
+        RequestStatus::try_from(unsafe { libcamera_request_status(self.ptr.as_ptr()) }).unwrap()
+    }
+}
+
+unsafe impl Send for RequestRef<'_> {}
 
 /// Status of [Request]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -163,7 +232,7 @@ impl Request {
 
     /// Iterate over buffers attached to this request as (Stream, framebuffer pointer).
     pub fn buffers_iter(&self) -> RequestBufferMapIter<'_> {
-        RequestBufferMapIter::new(self)
+        RequestBufferMapIter::new(self.ptr)
     }
 
     /// Returns auto-incrementing sequence number of the capture
@@ -215,8 +284,8 @@ pub struct RequestBufferMapIter<'d> {
 }
 
 impl<'d> RequestBufferMapIter<'d> {
-    pub fn new(req: &'d Request) -> Self {
-        let map = unsafe { libcamera_request_buffers(req.ptr.as_ptr()) };
+    pub fn new(req_ptr: NonNull<libcamera_request_t>) -> Self {
+        let map = unsafe { libcamera_request_buffers(req_ptr.as_ptr()) };
         let iter = NonNull::new(unsafe { libcamera_request_buffer_map_iter(map.cast_mut()) }).unwrap();
         Self {
             iter,

@@ -145,6 +145,47 @@ void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_p
     list->set(id, *val);
 }
 
+bool libcamera_control_list_contains(const libcamera_control_list_t *list, unsigned int id) {
+    if (!list)
+        return false;
+    return list->contains(id);
+}
+
+void libcamera_control_list_clear(libcamera_control_list_t *list) {
+    if (list)
+        list->clear();
+}
+
+size_t libcamera_control_list_size(const libcamera_control_list_t *list) {
+    if (!list)
+        return 0;
+    return list->size();
+}
+
+bool libcamera_control_list_is_empty(const libcamera_control_list_t *list) {
+    if (!list)
+        return true;
+    return list->empty();
+}
+
+void libcamera_control_list_merge(libcamera_control_list_t *list, const libcamera_control_list_t *other, enum libcamera_control_merge_policy policy) {
+    if (!list || !other)
+        return;
+    list->merge(*other, static_cast<libcamera::ControlList::MergePolicy>(policy));
+}
+
+const libcamera_control_info_map_t *libcamera_control_list_info_map(const libcamera_control_list_t *list) {
+    if (!list)
+        return nullptr;
+    return list->infoMap();
+}
+
+const libcamera_control_id_map_t *libcamera_control_list_id_map(const libcamera_control_list_t *list) {
+    if (!list)
+        return nullptr;
+    return list->idMap();
+}
+
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list) {
     auto it = list->begin();
     return new libcamera_control_list_iter_t { list, it };

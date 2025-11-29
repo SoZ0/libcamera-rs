@@ -321,10 +321,10 @@ pub trait AsFrameBuffer: Send {
         unsafe { Fence::from_ptr(libcamera_framebuffer_release_fence_handle(self.ptr().as_ptr())) }
     }
 
-    /// Returns the Request owning this framebuffer, if any.
-    fn request(&self) -> Option<crate::request::Request> {
+    /// Returns a non-owning view of the Request owning this framebuffer, if any.
+    fn request(&self) -> Option<crate::request::RequestRef<'_>> {
         let ptr = unsafe { libcamera_framebuffer_request(self.ptr().as_ptr()) };
-        NonNull::new(ptr).map(|p| unsafe { crate::request::Request::from_ptr(p) })
+        NonNull::new(ptr).map(|p| unsafe { crate::request::RequestRef::from_ptr(p) })
     }
 }
 

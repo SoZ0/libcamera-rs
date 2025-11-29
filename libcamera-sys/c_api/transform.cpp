@@ -42,4 +42,12 @@ libcamera_orientation_t libcamera_transform_apply_orientation(libcamera_orientat
     return orientation * transform;
 }
 
+libcamera_orientation_t libcamera_orientation_from_rotation(int angle, bool *success) {
+    bool ok = false;
+    libcamera_orientation_t ori = libcamera::orientationFromRotation(angle, &ok);
+    if (success)
+        *success = ok;
+    return ori;
+}
+
 }

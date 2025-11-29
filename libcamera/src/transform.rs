@@ -62,3 +62,14 @@ pub fn apply_transform_to_orientation(orientation: Orientation, transform: Trans
             .unwrap()
     }
 }
+
+/// Convert a rotation angle to an EXIF orientation using libcamera's helper.
+pub fn orientation_from_rotation(angle: i32) -> Option<Orientation> {
+    let mut success = false;
+    let ori = unsafe { libcamera_orientation_from_rotation(angle, &mut success) };
+    if success {
+        ori.try_into().ok()
+    } else {
+        None
+    }
+}

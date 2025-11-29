@@ -70,6 +70,11 @@ enum libcamera_control_direction {
     LIBCAMERA_CONTROL_DIRECTION_IN  = (1 << 0),
     LIBCAMERA_CONTROL_DIRECTION_OUT = (1 << 1),
 };
+
+enum libcamera_control_merge_policy {
+    LIBCAMERA_CONTROL_MERGE_KEEP_EXISTING = 0,
+    LIBCAMERA_CONTROL_MERGE_OVERWRITE_EXISTING = 1,
+};
 // --- libcamera_control_id ---
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id);
 const char *libcamera_control_name_from_id(enum libcamera_control_id_enum id);
@@ -102,6 +107,13 @@ libcamera_control_list_t *libcamera_control_list_create();
 void libcamera_control_list_destroy(libcamera_control_list_t *list);
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
 void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);
+bool libcamera_control_list_contains(const libcamera_control_list_t *list, unsigned int id);
+void libcamera_control_list_clear(libcamera_control_list_t *list);
+size_t libcamera_control_list_size(const libcamera_control_list_t *list);
+bool libcamera_control_list_is_empty(const libcamera_control_list_t *list);
+void libcamera_control_list_merge(libcamera_control_list_t *list, const libcamera_control_list_t *other, enum libcamera_control_merge_policy policy);
+const libcamera_control_info_map_t *libcamera_control_list_info_map(const libcamera_control_list_t *list);
+const libcamera_control_id_map_t *libcamera_control_list_id_map(const libcamera_control_list_t *list);
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list);
 
 // --- libcamera_control_list_iter_t ---

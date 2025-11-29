@@ -200,6 +200,14 @@ impl core::fmt::Debug for ControlInfoMap {
 #[repr(transparent)]
 pub struct ControlList(libcamera_control_list_t);
 
+/// How to merge control lists.
+#[derive(Debug, Clone, Copy)]
+#[repr(u32)]
+pub enum MergePolicy {
+    KeepExisting = libcamera_control_merge_policy::LIBCAMERA_CONTROL_MERGE_KEEP_EXISTING,
+    OverwriteExisting = libcamera_control_merge_policy::LIBCAMERA_CONTROL_MERGE_OVERWRITE_EXISTING,
+}
+
 impl UniquePtrTarget for ControlList {
     unsafe fn ptr_new() -> *mut Self {
         libcamera_control_list_create() as *mut Self
@@ -223,6 +231,36 @@ impl ControlList {
     pub(crate) fn ptr(&self) -> *const libcamera_control_list_t {
         // Safety: we can cast it because of `#[repr(transparent)]`
         &self.0 as *const libcamera_control_list_t
+    }
+
+    pub fn len(&self) -> usize {
+        unsafe { libcamera_control_list_size(self.ptr().cast_mut()) }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        unsafe { libcamera_control_list_is_empty(self.ptr().cast_mut()) }
+    }
+
+    pub fn clear(&mut self) {
+        unsafe { libcamera_control_list_clear(self.ptr().cast_mut()) }
+    }
+
+    pub fn contains(&self, id: u32) -> bool {
+        unsafe { libcamera_control_list_contains(self.ptr(), id) }
+    }
+
+    pub fn merge(&mut self, other: &ControlList, policy: MergePolicy) {
+        unsafe { libcamera_control_list_merge(self.ptr().cast_mut(), other.ptr(), policy as u32) }
+    }
+
+    pub fn info_map(&self) -> Option<&ControlInfoMap> {
+        unsafe {
+            let ptr = libcamera_control_list_info_map(self.ptr());
+            NonNull::new(ptr.cast_mut()).map(|p| {
+                let m: &mut ControlInfoMap = ControlInfoMap::from_ptr(p);
+                &*m
+            })
+        }
     }
 
     pub fn get<C: Control>(&self) -> Result<C, ControlError> {
