@@ -14,6 +14,10 @@ fn main() {
 
     let mut cfg = cam.generate_configuration(&[StreamRole::ViewFinder]).expect("config");
     cfg.validate();
+    if let Some(stream_cfg) = cfg.get(0) {
+        println!("Stream cfg: {}", stream_cfg.to_string_repr());
+    }
+    println!("Camera cfg: {}", cfg.to_string_repr());
 
     if let Some(sensor_cfg) = cfg.sensor_configuration() {
         println!("Sensor config valid: {}", sensor_cfg.is_valid());

@@ -66,6 +66,7 @@ libcamera_stream_t *libcamera_stream_configuration_stream(const libcamera_stream
 bool libcamera_stream_configuration_has_color_space(const libcamera_stream_configuration_t *config);
 libcamera_color_space_t libcamera_stream_configuration_get_color_space(const libcamera_stream_configuration_t *config);
 void libcamera_stream_configuration_set_color_space(libcamera_stream_configuration_t *config, const libcamera_color_space_t *color_space);
+char *libcamera_stream_configuration_to_string(const libcamera_stream_configuration_t *config);
 size_t libcamera_stream_set_size(const libcamera_stream_set_t *set);
 libcamera_stream_t *libcamera_stream_set_get(const libcamera_stream_set_t *set, size_t index);
 void libcamera_stream_set_destroy(libcamera_stream_set_t *set);

@@ -1,5 +1,7 @@
 #include "camera.h"
 #include <vector>
+#include <cstring>
+#include <string>
 
 struct libcamera_stream_set {
     std::vector<libcamera::Stream *> streams;
@@ -40,6 +42,24 @@ libcamera_sensor_configuration_t *libcamera_camera_configuration_get_sensor_conf
         return nullptr;
     }
     return new libcamera_sensor_configuration_t(config->sensorConfig.value());
+}
+
+libcamera_stream_configuration_t *libcamera_camera_configuration_add_configuration(libcamera_camera_configuration_t *config) {
+    libcamera::StreamConfiguration cfg;
+    config->addConfiguration(cfg);
+    if (config->size() == 0)
+        return nullptr;
+    return &config->at(config->size() - 1);
+}
+
+char *libcamera_camera_configuration_to_string(const libcamera_camera_configuration_t *config) {
+    std::string out;
+    for (size_t i = 0; i < config->size(); ++i) {
+        out += config->at(i).toString();
+        if (i + 1 < config->size())
+            out += " ";
+    }
+    return ::strdup(out.c_str());
 }
 
 libcamera_camera_t* libcamera_camera_copy(libcamera_camera_t *cam) {

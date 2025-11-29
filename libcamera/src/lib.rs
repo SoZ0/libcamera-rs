@@ -17,6 +17,7 @@ pub mod stream;
 pub mod transform;
 pub mod utils;
 pub mod vendor_features;
+pub mod version;
 
 mod generated;
 pub use generated::*;

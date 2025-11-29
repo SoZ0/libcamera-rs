@@ -220,6 +220,12 @@ impl CameraConfiguration {
         NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
     }
 
+    /// Append a new stream configuration for a given role.
+    pub fn add_configuration(&mut self) -> Option<StreamConfigurationRef<'_>> {
+        let ptr = unsafe { libcamera_camera_configuration_add_configuration(self.ptr.as_ptr()) };
+        NonNull::new(ptr).map(|p| unsafe { StreamConfigurationRef::from_ptr(p) })
+    }
+
     pub fn set_sensor_configuration(&mut self, mode: SensorConfiguration) {
         unsafe { libcamera_camera_set_sensor_configuration(self.ptr.as_ptr(), mode.item.as_ptr()) }
     }
@@ -273,6 +279,19 @@ impl CameraConfiguration {
             }
         }
         status
+    }
+
+    /// Return the libcamera textual representation of this configuration.
+    pub fn to_string_repr(&self) -> String {
+        unsafe {
+            let ptr = libcamera_camera_configuration_to_string(self.ptr.as_ptr());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
     }
 }
 

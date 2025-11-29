@@ -2,6 +2,7 @@
 
 #include <libcamera/libcamera.h>
 #include <vector>
+#include <cstring>
 
 extern "C" {
 
@@ -43,6 +44,10 @@ void libcamera_stream_configuration_set_color_space(libcamera_stream_configurati
     } else {
         config->colorSpace.reset();
     }
+}
+
+char *libcamera_stream_configuration_to_string(const libcamera_stream_configuration_t *config) {
+    return ::strdup(config->toString().c_str());
 }
 
 size_t libcamera_stream_set_size(const libcamera_stream_set_t *set) {

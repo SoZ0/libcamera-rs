@@ -188,6 +188,19 @@ impl StreamConfigurationRef<'_> {
             )
         }
     }
+
+    /// Return the libcamera textual representation of this configuration.
+    pub fn to_string_repr(&self) -> String {
+        unsafe {
+            let ptr = libcamera_stream_configuration_to_string(self.ptr.as_ptr());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
+    }
 }
 
 impl core::fmt::Debug for StreamConfigurationRef<'_> {
