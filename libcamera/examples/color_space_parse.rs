@@ -4,10 +4,11 @@ use std::str::FromStr;
 use libcamera::{color_space::ColorSpace, pixel_format::PixelFormat};
 
 fn main() {
-    let cs_str = "Smpte170m/Rec709/Full";
+    let cs = ColorSpace::rec709();
+    let cs_str = cs.to_repr();
     let pf_str = "YUYV";
 
-    let mut cs = ColorSpace::from_string(cs_str).expect("parse color space");
+    let mut cs = ColorSpace::from_string(&cs_str).expect("parse color space");
     let pf = PixelFormat::from_str(pf_str).expect("parse pixel format");
 
     println!("Parsed color space: {}", cs);
