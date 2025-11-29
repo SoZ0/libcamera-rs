@@ -37,6 +37,23 @@ impl PixelFormat {
     pub fn set_modifier(&mut self, modifier: u64) {
         self.0.modifier = modifier;
     }
+
+    /// Parse a PixelFormat from its string representation (e.g. "YUYV").
+    pub fn from_str(name: &str) -> Option<Self> {
+        let cstr = std::ffi::CString::new(name).ok()?;
+        let fmt = unsafe { libcamera_pixel_format_from_str(cstr.as_ptr()) };
+        let pf = PixelFormat(fmt);
+        if pf.is_valid() {
+            Some(pf)
+        } else {
+            None
+        }
+    }
+
+    /// Returns true if the PixelFormat represents a valid libcamera format.
+    pub fn is_valid(&self) -> bool {
+        unsafe { libcamera_pixel_format_is_valid(&self.0) }
+    }
 }
 
 impl PartialEq for PixelFormat {

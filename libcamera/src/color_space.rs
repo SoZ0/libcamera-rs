@@ -1,4 +1,5 @@
 use libcamera_sys::*;
+use std::ffi::CString;
 
 /// Color primaries
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -75,6 +76,40 @@ impl ColorSpace {
     }
     pub fn rec2020() -> Self {
         unsafe { libcamera_color_space_rec2020() }.into()
+    }
+
+    /// Returns libcamera string representation (e.g. "Smpte170m/Rec709/Full").
+    pub fn to_string(&self) -> String {
+        unsafe {
+            let ptr = libcamera_color_space_to_string(&(*self).into());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
+    }
+
+    /// Parse color space from libcamera string representation. Returns None on failure.
+    pub fn from_string(s: &str) -> Option<Self> {
+        let cstr = CString::new(s).ok()?;
+        let cs = unsafe { libcamera_color_space_from_string(cstr.as_ptr()) };
+        let cs = ColorSpace::from(cs);
+        // libcamera::ColorSpace::Raw is a valid fallback; to detect failure, re-stringify and compare.
+        if cs.to_string().is_empty() {
+            None
+        } else {
+            Some(cs)
+        }
+    }
+
+    /// Adjust this color space for a given pixel format. Returns true if valid after adjustment.
+    pub fn adjust_for_format(&mut self, pixel_format: crate::pixel_format::PixelFormat) -> bool {
+        let mut cs = (*self).into();
+        let ok = unsafe { libcamera_color_space_adjust(&mut cs, &pixel_format.0) };
+        *self = cs.into();
+        ok
     }
 }
 
