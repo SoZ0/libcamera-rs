@@ -303,7 +303,9 @@ pub trait AsFrameBuffer: Send {
         }
     }
 
-    /// Releases the acquire fence associated with this framebuffer, if any, returning a file descriptor.
+    /// Releases the acquire fence associated with this framebuffer, if any.
+    ///
+    /// Returns `Ok(OwnedFd)` if a fence is present, or `None` if no fence is available.
     fn release_fence(&self) -> Option<OwnedFd> {
         let fd = unsafe { libcamera_framebuffer_release_fence(self.ptr().as_ptr()) };
         if fd >= 0 {
