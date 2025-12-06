@@ -70,9 +70,13 @@ impl StreamFormatsRef<'_> {
         let sizes = unsafe { libcamera_stream_formats_sizes(self.ptr.as_ptr(), &pixel_format.0) };
         let len = unsafe { libcamera_sizes_size(sizes) };
 
-        (0..len)
+        let out = (0..len)
             .map(|i| Size::from(unsafe { *libcamera_sizes_at(sizes, i as _) }))
-            .collect()
+            .collect();
+
+        unsafe { libcamera_sizes_destroy(sizes) };
+
+        out
     }
 
     /// Returns a [SizeRange] of supported stream sizes for a given [PixelFormat].
