@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, mem::MaybeUninit};
 
 use thiserror::Error;
 
@@ -13,8 +13,12 @@ pub enum MemoryMappedFrameBufferError {
         len: usize,
         fd_len: usize,
     },
+    #[error("Plane {index} has an invalid offset")]
+    InvalidOffset { index: usize },
     #[error("mmap failed with {0:?}")]
     MemoryMapError(std::io::Error),
+    #[error("mapping was created read-only; write access requested")]
+    NotWritable,
 }
 
 struct MappedPlane {
@@ -26,7 +30,9 @@ struct MappedPlane {
 /// FrameBuffer wrapper, which exposes internal file descriptors as memory mapped [&[u8]] plane slices.
 pub struct MemoryMappedFrameBuffer<T: AsFrameBuffer> {
     fb: T,
-    mmaps: HashMap<i32, (*const core::ffi::c_void, usize)>,
+    writable: bool,
+    /// fd -> (mapped_ptr, mapped_len, map_offset)
+    mmaps: HashMap<i32, (*mut core::ffi::c_void, usize, usize)>,
     planes: Vec<MappedPlane>,
 }
 
@@ -35,35 +41,65 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
     ///
     /// This might fail if framebuffer has invalid plane sizes/offsets or if [libc::mmap] fails itself.
     pub fn new(fb: T) -> Result<Self, MemoryMappedFrameBufferError> {
+        Self::with_access(fb, false)
+    }
+
+    /// Memory map framebuffer for read/write access. Mapping will be `PROT_READ | PROT_WRITE`.
+    pub fn new_writable(fb: T) -> Result<Self, MemoryMappedFrameBufferError> {
+        Self::with_access(fb, true)
+    }
+
+    fn with_access(fb: T, writable: bool) -> Result<Self, MemoryMappedFrameBufferError> {
         struct MapInfo {
+            /// Page-aligned start offset for mapping
+            start: usize,
             /// Maximum offset used by data planes
-            mapped_len: usize,
+            end: usize,
             /// Total file descriptor size
             total_len: usize,
         }
 
         let mut planes = Vec::new();
         let mut map_info: HashMap<i32, MapInfo> = HashMap::new();
+        let page_size = {
+            let ps = unsafe { libc::sysconf(libc::_SC_PAGESIZE) };
+            if ps > 0 {
+                ps as usize
+            } else {
+                4096
+            }
+        };
 
         for (index, plane) in fb.planes().into_iter().enumerate() {
             let fd = plane.fd();
-            let offset = plane.offset().unwrap();
+            let offset = plane
+                .offset()
+                .ok_or(MemoryMappedFrameBufferError::InvalidOffset { index })?;
             let len = plane.len();
 
             planes.push(MappedPlane { fd, offset, len });
 
             // Find total FD length if not known yet
             map_info.entry(fd).or_insert_with(|| {
-                let total_len = unsafe { libc::lseek64(fd, 0, libc::SEEK_END) } as usize;
+                let mut st = MaybeUninit::<libc::stat>::uninit();
+                let ret = unsafe { libc::fstat(fd, st.as_mut_ptr()) };
+                let total_len = if ret != 0 {
+                    0
+                } else {
+                    let st = unsafe { st.assume_init() };
+                    st.st_size as usize
+                };
                 MapInfo {
-                    mapped_len: 0,
+                    start: offset,
+                    end: offset,
                     total_len,
                 }
             });
 
             let info = map_info.get_mut(&fd).unwrap();
 
-            if offset + len > info.total_len {
+            // If total_len is 0 (unknown for many DMA-BUFs), skip the bound check and let mmap fail if invalid.
+            if info.total_len > 0 && offset + len > info.total_len {
                 return Err(MemoryMappedFrameBufferError::PlaneOutOfBounds {
                     index,
                     offset,
@@ -72,20 +108,23 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
                 });
             }
 
-            info.mapped_len = info.mapped_len.max(offset + len);
+            let aligned_start = offset - (offset % page_size);
+            info.start = info.start.min(aligned_start);
+            info.end = info.end.max(offset + len);
         }
 
         let mmaps = map_info
             .iter()
             .map(|(fd, info)| {
+                let map_len = info.end.saturating_sub(info.start);
                 let addr = unsafe {
                     libc::mmap64(
                         core::ptr::null_mut(),
-                        info.mapped_len,
-                        libc::PROT_READ,
+                        map_len,
+                        libc::PROT_READ | if writable { libc::PROT_WRITE } else { 0 },
                         libc::MAP_SHARED,
                         *fd,
-                        0,
+                        info.start as _,
                     )
                 };
 
@@ -94,13 +133,18 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
                         std::io::Error::last_os_error(),
                     ))
                 } else {
-                    Ok((*fd, (addr.cast_const(), info.mapped_len)))
+                    Ok((*fd, (addr, map_len, info.start)))
                 }
             })
-            .collect::<Result<HashMap<i32, (*const core::ffi::c_void, usize)>, MemoryMappedFrameBufferError>>()
+            .collect::<Result<HashMap<i32, (*mut core::ffi::c_void, usize, usize)>, MemoryMappedFrameBufferError>>()
             .unwrap();
 
-        Ok(Self { fb, mmaps, planes })
+        Ok(Self {
+            fb,
+            writable,
+            mmaps,
+            planes,
+        })
     }
 
     /// Returns data slice for each plane within the framebuffer.
@@ -108,10 +152,40 @@ impl<T: AsFrameBuffer> MemoryMappedFrameBuffer<T> {
         self.planes
             .iter()
             .map(|plane| {
-                let mmap_ptr: *const u8 = self.mmaps[&plane.fd].0.cast();
-                unsafe { core::slice::from_raw_parts(mmap_ptr.add(plane.offset), plane.len) }
+                let (mmap_ptr, _, map_offset) = self.mmaps[&plane.fd];
+                let mmap_ptr: *const u8 = mmap_ptr.cast();
+                let offset = plane.offset - map_offset;
+                unsafe { core::slice::from_raw_parts(mmap_ptr.add(offset), plane.len) }
             })
             .collect()
+    }
+
+    /// Returns mutable data slices for each plane within the framebuffer. Mapping must be writable.
+    pub fn data_mut(&mut self) -> Result<Vec<&mut [u8]>, MemoryMappedFrameBufferError> {
+        if !self.writable {
+            return Err(MemoryMappedFrameBufferError::NotWritable);
+        }
+
+        Ok(self
+            .planes
+            .iter()
+            .map(|plane| {
+                let (mmap_ptr, _, map_offset) = self.mmaps[&plane.fd];
+                let mmap_ptr: *mut u8 = mmap_ptr.cast();
+                let offset = plane.offset - map_offset;
+                unsafe { core::slice::from_raw_parts_mut(mmap_ptr.add(offset), plane.len) }
+            })
+            .collect())
+    }
+
+    /// Returns true if this mapping was created with write access.
+    pub fn is_writable(&self) -> bool {
+        self.writable
+    }
+
+    /// Returns the mapped length for a given file descriptor, if present.
+    pub fn mapped_len(&self, fd: i32) -> Option<usize> {
+        self.mmaps.get(&fd).map(|(_, len, _)| *len)
     }
 }
 
@@ -126,9 +200,9 @@ unsafe impl<T: AsFrameBuffer> Send for MemoryMappedFrameBuffer<T> {}
 impl<T: AsFrameBuffer> Drop for MemoryMappedFrameBuffer<T> {
     fn drop(&mut self) {
         // Unmap
-        for (_fd, (ptr, size)) in self.mmaps.drain() {
+        for (_fd, (ptr, size, _map_offset)) in self.mmaps.drain() {
             unsafe {
-                libc::munmap(ptr.cast_mut(), size);
+                libc::munmap(ptr, size);
             }
         }
     }

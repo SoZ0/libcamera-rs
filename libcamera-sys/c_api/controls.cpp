@@ -3,6 +3,12 @@
 #include <libcamera/libcamera.h>
 #include <string.h>
 
+struct libcamera_control_id_map_iter {
+    const libcamera::ControlIdMap *map;
+    libcamera::ControlIdMap::const_iterator current;
+    libcamera::ControlIdMap::const_iterator end;
+};
+
 extern "C" {
 
 enum libcamera_control_id_enum libcamera_control_id(libcamera_control_id_t *control){
@@ -82,6 +88,44 @@ void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerat
     delete iter;
 }
 
+libcamera_control_id_map_iter_t *libcamera_control_id_map_iter_create(const libcamera_control_id_map_t *map) {
+    if (!map)
+        return nullptr;
+    auto iter = new libcamera_control_id_map_iter_t();
+    iter->map = map;
+    iter->current = map->begin();
+    iter->end = map->end();
+    return iter;
+}
+
+bool libcamera_control_id_map_iter_has_next(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter)
+        return false;
+    return iter->current != iter->end;
+}
+
+unsigned int libcamera_control_id_map_iter_key(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return 0;
+    return iter->current->first;
+}
+
+const libcamera_control_id_t *libcamera_control_id_map_iter_value(const libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return nullptr;
+    return iter->current->second;
+}
+
+void libcamera_control_id_map_iter_next(libcamera_control_id_map_iter_t *iter) {
+    if (!iter || iter->current == iter->end)
+        return;
+    ++(iter->current);
+}
+
+void libcamera_control_id_map_iter_destroy(libcamera_control_id_map_iter_t *iter) {
+    delete iter;
+}
+
 
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id){
      auto it = libcamera::controls::controls.find(id);
@@ -127,6 +171,18 @@ libcamera_control_list_t *libcamera_control_list_create() {
     return new libcamera::ControlList();
 }
 
+libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcamera_control_id_map_t *idmap) {
+    if (!idmap)
+        return nullptr;
+    return new libcamera::ControlList(*idmap);
+}
+
+libcamera_control_list_t *libcamera_control_list_create_with_info_map(const libcamera_control_info_map_t *info_map) {
+    if (!info_map)
+        return nullptr;
+    return new libcamera::ControlList(*info_map);
+}
+
 void libcamera_control_list_destroy(libcamera_control_list_t *list) {
     delete list;
 }
@@ -143,6 +199,47 @@ void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_p
     // It would be nice to report status of this operation, however API does not provide any feedback
     // and internally used `_validator` is private.
     list->set(id, *val);
+}
+
+bool libcamera_control_list_contains(const libcamera_control_list_t *list, unsigned int id) {
+    if (!list)
+        return false;
+    return list->contains(id);
+}
+
+void libcamera_control_list_clear(libcamera_control_list_t *list) {
+    if (list)
+        list->clear();
+}
+
+size_t libcamera_control_list_size(const libcamera_control_list_t *list) {
+    if (!list)
+        return 0;
+    return list->size();
+}
+
+bool libcamera_control_list_is_empty(const libcamera_control_list_t *list) {
+    if (!list)
+        return true;
+    return list->empty();
+}
+
+void libcamera_control_list_merge(libcamera_control_list_t *list, const libcamera_control_list_t *other, enum libcamera_control_merge_policy policy) {
+    if (!list || !other)
+        return;
+    list->merge(*other, static_cast<libcamera::ControlList::MergePolicy>(policy));
+}
+
+const libcamera_control_info_map_t *libcamera_control_list_info_map(const libcamera_control_list_t *list) {
+    if (!list)
+        return nullptr;
+    return list->infoMap();
+}
+
+const libcamera_control_id_map_t *libcamera_control_list_id_map(const libcamera_control_list_t *list) {
+    if (!list)
+        return nullptr;
+    return list->idMap();
 }
 
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list) {

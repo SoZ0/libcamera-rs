@@ -9,6 +9,17 @@ char *libcamera_pixel_format_str(const libcamera_pixel_format_t *format) {
     return strdup(format->toString().c_str());
 }
 
+libcamera_pixel_format_t libcamera_pixel_format_from_str(const char *name) {
+    if (!name) {
+        return libcamera::PixelFormat();
+    }
+    return libcamera::PixelFormat::fromString(std::string(name));
+}
+
+bool libcamera_pixel_format_is_valid(const libcamera_pixel_format_t *format) {
+    return format && format->isValid();
+}
+
 void libcamera_pixel_formats_destroy(libcamera_pixel_formats_t *formats) {
     delete formats;
 }

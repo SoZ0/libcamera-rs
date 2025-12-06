@@ -20,6 +20,10 @@ int libcamera_framebuffer_allocator_free(libcamera_framebuffer_allocator_t *allo
     return alloc->free(stream);
 }
 
+bool libcamera_framebuffer_allocator_allocated(const libcamera_framebuffer_allocator_t *alloc) {
+    return alloc->allocated();
+}
+
 const libcamera_framebuffer_list_t *libcamera_framebuffer_allocator_buffers(libcamera_framebuffer_allocator_t *alloc, libcamera_stream_t *stream) {
     return &alloc->buffers(stream);
 }

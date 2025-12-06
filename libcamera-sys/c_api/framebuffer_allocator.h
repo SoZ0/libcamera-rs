@@ -22,6 +22,7 @@ libcamera_framebuffer_allocator_t *libcamera_framebuffer_allocator_create(libcam
 void libcamera_framebuffer_allocator_destroy(libcamera_framebuffer_allocator_t *alloc);
 int libcamera_framebuffer_allocator_allocate(libcamera_framebuffer_allocator_t *alloc, libcamera_stream_t *stream);
 int libcamera_framebuffer_allocator_free(libcamera_framebuffer_allocator_t *alloc, libcamera_stream_t *stream);
+bool libcamera_framebuffer_allocator_allocated(const libcamera_framebuffer_allocator_t *alloc);
 const libcamera_framebuffer_list_t *libcamera_framebuffer_allocator_buffers(libcamera_framebuffer_allocator_t *alloc, libcamera_stream_t *stream);
 
 size_t libcamera_framebuffer_list_size(const libcamera_framebuffer_list_t *list);

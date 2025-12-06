@@ -53,6 +53,12 @@ fn main() {
         .flag("-std=c++17")
         .files(c_api_sources)
         .include(libcamera_include_path)
+        .include(
+            libcamera_include_path
+                .parent()
+                .map(|p| p.to_path_buf())
+                .unwrap_or_else(|| libcamera_include_path.to_path_buf()),
+        )
         .compile("camera_c_api");
 
     // C bindings

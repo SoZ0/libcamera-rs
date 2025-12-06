@@ -3,6 +3,7 @@ use std::{marker::PhantomData, ptr::NonNull};
 use libcamera_sys::*;
 
 use crate::{
+    color_space::ColorSpace,
     geometry::{Size, SizeRange},
     pixel_format::{PixelFormat, PixelFormats},
     utils::Immutable,
@@ -108,6 +109,10 @@ impl StreamConfigurationRef<'_> {
         }
     }
 
+    pub(crate) fn as_ptr(&self) -> *const libcamera_stream_configuration_t {
+        self.ptr.as_ptr()
+    }
+
     pub fn get_pixel_format(&self) -> PixelFormat {
         PixelFormat(unsafe { self.ptr.as_ref() }.pixel_format)
     }
@@ -128,6 +133,7 @@ impl StreamConfigurationRef<'_> {
         unsafe { self.ptr.as_ref() }.stride
     }
 
+    /// Stride is typically populated by libcamera after validate(); overriding manually is advanced use.
     pub fn set_stride(&mut self, stride: u32) {
         unsafe { self.ptr.as_mut() }.stride = stride
     }
@@ -136,6 +142,7 @@ impl StreamConfigurationRef<'_> {
         unsafe { self.ptr.as_ref() }.frame_size
     }
 
+    /// Frame size is typically populated by libcamera after validate(); overriding manually is advanced use.
     pub fn set_frame_size(&mut self, frame_size: u32) {
         unsafe { self.ptr.as_mut() }.frame_size = frame_size
     }
@@ -146,6 +153,27 @@ impl StreamConfigurationRef<'_> {
 
     pub fn set_buffer_count(&mut self, buffer_count: u32) {
         unsafe { self.ptr.as_mut() }.buffer_count = buffer_count;
+    }
+
+    /// Returns the configured color space, if any.
+    pub fn get_color_space(&self) -> Option<ColorSpace> {
+        if unsafe { libcamera_stream_configuration_has_color_space(self.ptr.as_ptr()) } {
+            Some(ColorSpace::from(unsafe {
+                libcamera_stream_configuration_get_color_space(self.ptr.as_ptr())
+            }))
+        } else {
+            None
+        }
+    }
+
+    /// Sets the color space for this stream configuration. Pass `None` to clear it.
+    pub fn set_color_space(&mut self, color_space: Option<ColorSpace>) {
+        unsafe {
+            match color_space {
+                Some(cs) => libcamera_stream_configuration_set_color_space(self.ptr.as_ptr(), &cs.into()),
+                None => libcamera_stream_configuration_set_color_space(self.ptr.as_ptr(), core::ptr::null()),
+            }
+        }
     }
 
     /// Returns initialized [Stream] for this configuration.
@@ -168,6 +196,19 @@ impl StreamConfigurationRef<'_> {
             )
         }
     }
+
+    /// Return the libcamera textual representation of this configuration.
+    pub fn to_string_repr(&self) -> String {
+        unsafe {
+            let ptr = libcamera_stream_configuration_to_string(self.ptr.as_ptr());
+            if ptr.is_null() {
+                return String::new();
+            }
+            let s = std::ffi::CStr::from_ptr(ptr).to_string_lossy().into_owned();
+            libc::free(ptr.cast());
+            s
+        }
+    }
 }
 
 impl core::fmt::Debug for StreamConfigurationRef<'_> {
@@ -178,6 +219,7 @@ impl core::fmt::Debug for StreamConfigurationRef<'_> {
             .field("stride", &self.get_stride())
             .field("frame_size", &self.get_frame_size())
             .field("buffer_count", &self.get_buffer_count())
+            .field("color_space", &self.get_color_space())
             .finish()
     }
 }
@@ -185,7 +227,7 @@ impl core::fmt::Debug for StreamConfigurationRef<'_> {
 /// Handle to a camera stream.
 ///
 /// Obtained from [StreamConfigurationRef::stream()] and is valid as long as camera configuration is unchanged.
-#[derive(Clone, Copy, Hash, PartialEq, Eq)]
+#[derive(Clone, Copy, Hash, PartialEq, Eq, Debug)]
 pub struct Stream {
     /// libcamera_stream_t is used as unique key across various libcamera structures
     /// and adding a lifetime would be really inconvenient. Dangling pointer should not
@@ -197,6 +239,13 @@ pub struct Stream {
 impl Stream {
     pub(crate) unsafe fn from_ptr(ptr: NonNull<libcamera_stream_t>) -> Self {
         Self { ptr }
+    }
+
+    /// Returns the active [StreamConfigurationRef] for this stream, if available.
+    pub fn configuration(&self) -> Option<Immutable<StreamConfigurationRef<'_>>> {
+        let cfg = unsafe { libcamera_stream_get_configuration(self.ptr.as_ptr()) };
+        NonNull::new(cfg as *mut libcamera_stream_configuration_t)
+            .map(|p| Immutable(unsafe { StreamConfigurationRef::from_ptr(p) }))
     }
 }
 

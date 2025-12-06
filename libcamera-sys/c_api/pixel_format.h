@@ -31,6 +31,11 @@ typedef struct libcamera_pixel_formats libcamera_pixel_formats_t;
 /// @return A heap allocated null-terminated string, that has to be deallocated with free()
 char *libcamera_pixel_format_str(const libcamera_pixel_format_t *format);
 
+// Parse a string into a PixelFormat. Returns a PixelFormat with fourcc=0 on failure.
+libcamera_pixel_format_t libcamera_pixel_format_from_str(const char *name);
+// Whether the PixelFormat is valid (fourcc != 0).
+bool libcamera_pixel_format_is_valid(const libcamera_pixel_format_t *format);
+
 void libcamera_pixel_formats_destroy(libcamera_pixel_formats_t *formats);
 size_t libcamera_pixel_formats_size(const libcamera_pixel_formats_t *formats);
 libcamera_pixel_format_t libcamera_pixel_formats_get(const libcamera_pixel_formats_t *formats, size_t index);

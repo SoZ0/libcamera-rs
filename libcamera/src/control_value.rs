@@ -33,7 +33,7 @@ pub enum ControlValue {
     Int32(SmallVec<[i32; 1]>),
     Int64(SmallVec<[i64; 1]>),
     Float(SmallVec<[f32; 1]>),
-    String(String),
+    String(SmallVec<[String; 1]>),
     Rectangle(SmallVec<[Rectangle; 1]>),
     Size(SmallVec<[Size; 1]>),
     // bad gues
@@ -200,7 +200,7 @@ impl_control_value_array!(ControlValue::Point, Point);
 
 impl From<String> for ControlValue {
     fn from(val: String) -> Self {
-        Self::String(val)
+        Self::String(smallvec![val])
     }
 }
 
@@ -209,7 +209,36 @@ impl TryFrom<ControlValue> for String {
 
     fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
         match value {
-            ControlValue::String(v) => Ok(v),
+            ControlValue::String(mut v) => {
+                if v.len() == 1 {
+                    Ok(v.pop().unwrap())
+                } else {
+                    Err(ControlValueError::InvalidLength {
+                        expected: 1,
+                        found: v.len(),
+                    })
+                }
+            }
+            _ => Err(ControlValueError::InvalidType {
+                expected: libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING,
+                found: value.ty(),
+            }),
+        }
+    }
+}
+
+impl From<Vec<String>> for ControlValue {
+    fn from(val: Vec<String>) -> Self {
+        ControlValue::String(SmallVec::from_vec(val))
+    }
+}
+
+impl TryFrom<ControlValue> for Vec<String> {
+    type Error = ControlValueError;
+
+    fn try_from(value: ControlValue) -> Result<Self, Self::Error> {
+        match value {
+            ControlValue::String(v) => Ok(v.into_vec()),
             _ => Err(ControlValueError::InvalidType {
                 expected: libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING,
                 found: value.ty(),
@@ -256,7 +285,27 @@ impl ControlValue {
             }
             LIBCAMERA_CONTROL_TYPE_STRING => {
                 let slice = core::slice::from_raw_parts(data as *const u8, num_elements);
-                Ok(Self::String(core::str::from_utf8(slice).unwrap().to_string()))
+                // Split on interior NULs to support string arrays; fallback to single string if no delimiters.
+                let mut parts = Vec::new();
+                let mut start = 0usize;
+                for (idx, b) in slice.iter().enumerate() {
+                    if *b == 0 {
+                        parts.push(&slice[start..idx]);
+                        start = idx + 1;
+                    }
+                }
+                if start < slice.len() {
+                    parts.push(&slice[start..]);
+                }
+                if parts.is_empty() {
+                    parts.push(&[]);
+                }
+                let strings = parts
+                    .into_iter()
+                    .filter_map(|p| core::str::from_utf8(p).ok())
+                    .map(|s| s.to_string())
+                    .collect();
+                Ok(Self::String(strings))
             }
             LIBCAMERA_CONTROL_TYPE_RECTANGLE => {
                 let slice = core::slice::from_raw_parts(data as *const libcamera_rectangle_t, num_elements);
@@ -277,6 +326,7 @@ impl ControlValue {
     }
 
     pub(crate) unsafe fn write(&self, val: NonNull<libcamera_control_value_t>) {
+        let mut tmp_string_buf: Vec<u8> = Vec::new();
         let (data, len) = match self {
             ControlValue::None => (core::ptr::null(), 0),
             ControlValue::Bool(v) => (v.as_ptr().cast(), v.len()),
@@ -286,20 +336,25 @@ impl ControlValue {
             ControlValue::Int32(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Int64(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Float(v) => (v.as_ptr().cast(), v.len()),
-            ControlValue::String(v) => (v.as_ptr().cast(), v.len()),
+            ControlValue::String(v) => {
+                if v.len() <= 1 {
+                    let s = v.first().map(|s| s.as_bytes()).unwrap_or(&[]);
+                    tmp_string_buf.extend_from_slice(s);
+                } else {
+                    tmp_string_buf.extend_from_slice(v.join("\0").as_bytes());
+                }
+                (tmp_string_buf.as_ptr(), tmp_string_buf.len())
+            }
             ControlValue::Rectangle(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Size(v) => (v.as_ptr().cast(), v.len()),
             ControlValue::Point(v) => (v.as_ptr().cast(), v.len()),
         };
 
-        let ty = self.ty();
-        let is_array = if ty == libcamera_control_type::LIBCAMERA_CONTROL_TYPE_STRING {
-            true
-        } else {
-            len != 1
-        };
+        // Strings must always be treated as arrays of bytes; passing a scalar causes libcamera to
+        // allocate only one byte. For all other types, keep the previous "len != 1" rule.
+        let is_array = matches!(self, ControlValue::String(_)) || len != 1;
 
-        libcamera_control_value_set(val.as_ptr(), self.ty(), data, is_array, len as _);
+        libcamera_control_value_set(val.as_ptr(), self.ty(), data.cast(), is_array, len as _);
     }
 
     pub fn ty(&self) -> u32 {

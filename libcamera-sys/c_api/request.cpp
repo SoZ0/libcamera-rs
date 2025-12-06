@@ -1,4 +1,7 @@
 #include "request.h"
+#include "fence.h"
+#include <libcamera/libcamera.h>
+#include <cstring>
 
 extern "C" {
 
@@ -22,6 +25,14 @@ int libcamera_request_add_buffer(libcamera_request_t *request, const libcamera_s
     return request->addBuffer(stream, buffer);
 }
 
+int libcamera_request_add_buffer_with_fence(libcamera_request_t *request, const libcamera_stream_t *stream, libcamera_framebuffer_t *buffer, libcamera_fence_t *fence) {
+    std::unique_ptr<libcamera::Fence> acquire_fence;
+    if (fence) {
+        acquire_fence.reset(fence);
+    }
+    return request->addBuffer(stream, buffer, std::move(acquire_fence));
+}
+
 libcamera_framebuffer_t *libcamera_request_find_buffer(const libcamera_request_t *request, const libcamera_stream_t *stream) {
     return request->findBuffer(stream);
 }
@@ -40,6 +51,14 @@ libcamera_request_status_t libcamera_request_status(const libcamera_request_t *r
 
 void libcamera_request_reuse(libcamera_request_t *request, libcamera_request_reuse_flag_t flags) {
     return request->reuse(flags);
+}
+
+bool libcamera_request_has_pending_buffers(const libcamera_request_t *request) {
+    return request->hasPendingBuffers();
+}
+
+char *libcamera_request_to_string(const libcamera_request_t *request) {
+    return ::strdup(request->toString().c_str());
 }
 
 libcamera_framebuffer_t *libcamera_request_buffer_map_get(libcamera_request_buffer_map_t* buffer_map, const libcamera_stream_t *stream) {

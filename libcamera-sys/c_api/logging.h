@@ -6,11 +6,14 @@
 enum libcamera_logging_target {
     LIBCAMERA_LOGGING_TARGET_NONE,
     LIBCAMERA_LOGGING_TARGET_SYSLOG,
+    LIBCAMERA_LOGGING_TARGET_FILE,
+    LIBCAMERA_LOGGING_TARGET_STREAM,
 };
 
 enum libcamera_logging_stream {
     LIBCAMERA_LOGGING_STREAM_STDOUT,
     LIBCAMERA_LOGGING_STREAM_STDERR,
+    LIBCAMERA_LOGGING_STREAM_CUSTOM,
 };
 
 typedef enum libcamera_logging_stream libcamera_logging_stream_t;
@@ -29,6 +32,7 @@ typedef enum libcamera_logging_target libcamera_logging_target_t;
 
 int libcamera_log_set_file(const char *path, bool color);
 int libcamera_log_set_stream(libcamera_logging_stream_t stream, bool color);
+int libcamera_log_set_custom_stream(void *ostream, bool color);
 int libcamera_log_set_target(libcamera_logging_target_t target);
 void libcamera_log_set_level(const char *category, const char *level);
 

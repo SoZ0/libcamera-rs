@@ -1,9 +1,14 @@
-use std::{marker::PhantomData, ptr::NonNull};
+use std::{
+    io,
+    marker::PhantomData,
+    os::fd::{IntoRawFd, OwnedFd},
+    ptr::NonNull,
+};
 
 use libcamera_sys::*;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
-use crate::utils::Immutable;
+use crate::{fence::Fence, utils::Immutable};
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, TryFromPrimitive, IntoPrimitive)]
 #[repr(u32)]
@@ -233,6 +238,12 @@ impl core::fmt::Debug for FrameBufferPlanesRef<'_> {
     }
 }
 
+impl Drop for FrameBufferPlanesRef<'_> {
+    fn drop(&mut self) {
+        unsafe { libcamera_framebuffer_planes_destroy(self.ptr.as_ptr()) }
+    }
+}
+
 impl<'d> IntoIterator for &'d FrameBufferPlanesRef<'d> {
     type Item = Immutable<FrameBufferPlaneRef<'d>>;
 
@@ -288,8 +299,147 @@ pub trait AsFrameBuffer: Send {
     fn planes(&self) -> Immutable<FrameBufferPlanesRef<'_>> {
         unsafe {
             Immutable(FrameBufferPlanesRef::from_ptr(
-                NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr()).cast_mut()).unwrap(),
+                NonNull::new(libcamera_framebuffer_planes(self.ptr().as_ptr())).unwrap(),
             ))
         }
+    }
+
+    /// User cookie associated with the buffer.
+    fn cookie(&self) -> u64 {
+        unsafe { libcamera_framebuffer_cookie(self.ptr().as_ptr()) }
+    }
+
+    /// Set user cookie associated with the buffer.
+    fn set_cookie(&self, cookie: u64) {
+        unsafe { libcamera_framebuffer_set_cookie(self.ptr().as_ptr(), cookie) }
+    }
+
+    /// Releases the acquire fence associated with this framebuffer, if any.
+    ///
+    /// Ownership of the fence is transferred to the caller.
+    fn release_fence(&self) -> Option<Fence> {
+        unsafe { Fence::from_ptr(libcamera_framebuffer_release_fence_handle(self.ptr().as_ptr())) }
+    }
+
+    /// Returns a non-owning view of the Request owning this framebuffer, if any.
+    fn request(&self) -> Option<crate::request::RequestRef<'_>> {
+        let ptr = unsafe { libcamera_framebuffer_request(self.ptr().as_ptr()) };
+        NonNull::new(ptr).map(|p| unsafe { crate::request::RequestRef::from_ptr(p) })
+    }
+}
+
+/// Description of a framebuffer plane for importing buffers.
+pub struct FrameBufferPlane {
+    pub fd: OwnedFd,
+    pub offset: u32,
+    pub length: u32,
+}
+
+/// FrameBuffer created from user-provided DMABUFs.
+pub struct OwnedFrameBuffer {
+    ptr: NonNull<libcamera_framebuffer_t>,
+}
+
+unsafe impl Send for OwnedFrameBuffer {}
+
+impl OwnedFrameBuffer {
+    /// Create a framebuffer from a set of planes. Ownership of the fds is transferred.
+    pub fn new(planes: Vec<FrameBufferPlane>, cookie: Option<u64>) -> io::Result<Self> {
+        if planes.is_empty() {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "no planes provided"));
+        }
+
+        let mut infos: Vec<libcamera_framebuffer_plane_info> = Vec::with_capacity(planes.len());
+        let mut raw_fds = Vec::with_capacity(planes.len());
+
+        for plane in planes {
+            if plane.offset == u32::MAX || plane.length == 0 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "plane offset/length must be valid and non-zero",
+                ));
+            }
+            let fd = plane.fd.into_raw_fd();
+            raw_fds.push(fd);
+            infos.push(libcamera_framebuffer_plane_info {
+                fd,
+                offset: plane.offset,
+                length: plane.length,
+            });
+        }
+
+        let ptr = unsafe { libcamera_framebuffer_create(infos.as_ptr(), infos.len(), cookie.unwrap_or(0)) };
+
+        if let Some(ptr) = NonNull::new(ptr) {
+            // Initialize metadata status sentinel to avoid uninitialized reads.
+            unsafe {
+                libcamera_framebuffer_metadata(ptr.as_ptr())
+                    .cast_mut()
+                    .cast::<u32>()
+                    .write(u32::MAX)
+            };
+            Ok(Self { ptr })
+        } else {
+            for fd in raw_fds {
+                unsafe { libc::close(fd) };
+            }
+            Err(io::Error::last_os_error())
+        }
+    }
+}
+
+impl AsFrameBuffer for OwnedFrameBuffer {
+    unsafe fn ptr(&self) -> NonNull<libcamera_framebuffer_t> {
+        self.ptr
+    }
+}
+
+impl OwnedFrameBuffer {
+    /// Returns true if planes are contiguous within a single FD and ordered without gaps.
+    pub fn is_contiguous(&self) -> bool {
+        let planes = self.planes();
+        if planes.is_empty() {
+            return false;
+        }
+        // Gather (fd, offset, length)
+        let mut entries: Vec<(i32, usize, usize)> = planes
+            .into_iter()
+            .filter_map(|p| p.offset().map(|off| (p.fd(), off, p.len())))
+            .collect();
+        // Must all share the same fd
+        if entries
+            .iter()
+            .map(|e| e.0)
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            != 1
+        {
+            return false;
+        }
+        entries.sort_by_key(|e| e.1);
+        // Check contiguous offsets
+        let mut expected = entries[0].1;
+        for (_, off, len) in entries {
+            if off != expected {
+                return false;
+            }
+            expected = off + len;
+        }
+        true
+    }
+}
+
+impl core::fmt::Debug for OwnedFrameBuffer {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("OwnedFrameBuffer")
+            .field("cookie", &self.cookie())
+            .field("planes", &self.planes())
+            .finish()
+    }
+}
+
+impl Drop for OwnedFrameBuffer {
+    fn drop(&mut self) {
+        unsafe { libcamera_framebuffer_destroy(self.ptr.as_ptr()) }
     }
 }

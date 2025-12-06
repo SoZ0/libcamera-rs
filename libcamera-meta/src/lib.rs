@@ -4,6 +4,8 @@ use yaml_rust::Yaml;
 pub enum ControlType {
     Bool,
     Byte,
+    Uint16,
+    Uint32,
     Int32,
     Int64,
     Float,
@@ -20,6 +22,8 @@ impl TryFrom<&str> for ControlType {
         match value {
             "bool" => Ok(ControlType::Bool),
             "uint8_t" => Ok(ControlType::Byte),
+            "uint16_t" => Ok(ControlType::Uint16),
+            "uint32_t" => Ok(ControlType::Uint32),
             "int32_t" => Ok(ControlType::Int32),
             "int64_t" => Ok(ControlType::Int64),
             "float" => Ok(ControlType::Float),

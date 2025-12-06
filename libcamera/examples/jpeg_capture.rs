@@ -86,10 +86,11 @@ fn main() {
     cam.start(None).unwrap();
 
     // Multiple requests can be queued at a time, but for this example we just want a single frame.
-    cam.queue_request(reqs.pop().unwrap()).unwrap();
+    cam.queue_request(reqs.pop().unwrap()).map_err(|(_, e)| e).unwrap();
 
     println!("Waiting for camera request execution");
-    let req = rx.recv_timeout(Duration::from_secs(2)).expect("Camera request failed");
+    // Allow a bit more time for first exposure/conversion to complete on slower cameras.
+    let req = rx.recv_timeout(Duration::from_secs(5)).expect("Camera request failed");
 
     println!("Camera request {req:?} completed!");
     println!("Metadata: {:#?}", req.metadata());

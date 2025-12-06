@@ -1,7 +1,12 @@
-use std::{collections::BTreeMap, path::Path};
+use std::{
+    collections::{BTreeMap, HashMap},
+    fmt::Write,
+    path::Path,
+};
 
 use git2::{build::CheckoutBuilder, ObjectType, Repository};
 use libcamera_meta::{ControlEnumValue, ControlSize, ControlType};
+use regex::Regex;
 use semver::Version;
 use yaml_rust::{Yaml, YamlLoader};
 
@@ -10,6 +15,8 @@ use crate::generate_rust::ControlsType;
 struct ByVersionData {
     pub controls: BTreeMap<String, String>,
     pub properties: BTreeMap<String, String>,
+    pub formats_yaml: String,
+    pub formats_cpp: String,
 }
 
 #[derive(Debug)]
@@ -21,6 +28,26 @@ pub struct Control {
     pub description: String,
     pub size: Option<Vec<ControlSize>>,
     pub enumeration: Option<Vec<ControlEnumValue>>,
+}
+
+#[derive(Debug, Clone)]
+struct FormatConst {
+    name: String,
+    fourcc: u32,
+    modifier: u64,
+}
+
+#[derive(Debug, Clone)]
+struct PixelFormatInfo {
+    name: String,
+    fourcc: u32,
+    modifier: u64,
+    bits_per_pixel: u32,
+    colour_encoding: u8,
+    packed: bool,
+    pixels_per_group: u32,
+    planes: Vec<(u32, u32)>,
+    v4l2_formats: Vec<u32>,
 }
 
 fn main() {
@@ -114,8 +141,19 @@ fn main() {
         };
         let controls = extract_controls("control_ids");
         let properties = extract_controls("property_ids");
+        let formats_yaml =
+            std::fs::read_to_string(git_dir.join("src/libcamera/formats.yaml")).expect("read formats.yaml");
+        let formats_cpp = std::fs::read_to_string(git_dir.join("src/libcamera/formats.cpp")).expect("read formats.cpp");
 
-        by_version.insert(version, ByVersionData { controls, properties });
+        by_version.insert(
+            version,
+            ByVersionData {
+                controls,
+                properties,
+                formats_yaml,
+                formats_cpp,
+            },
+        );
 
         true
     })
@@ -189,6 +227,321 @@ fn main() {
         controls
     }
 
+    fn parse_format_consts(
+        formats_yaml: &str,
+        drm_map: &HashMap<String, u32>,
+        modifier_map: &HashMap<String, u64>,
+        v4l2_map: &HashMap<String, u32>,
+    ) -> Vec<FormatConst> {
+        let yaml = YamlLoader::load_from_str(formats_yaml).expect("parse formats.yaml");
+        let mut out = Vec::new();
+        for doc in yaml {
+            let Some(formats) = doc["formats"].as_vec() else {
+                continue;
+            };
+            for entry in formats {
+                let map = entry.as_hash().unwrap();
+                for (name_yaml, val) in map {
+                    let name = name_yaml.as_str().unwrap().to_string();
+                    let fourcc_name = val["fourcc"].as_str().unwrap();
+                    let mut fourcc = drm_map
+                        .get(fourcc_name)
+                        .copied()
+                        .or_else(|| {
+                            let suffix = fourcc_name.trim_start_matches("DRM_FORMAT_");
+                            let v4l2_name = format!("V4L2_PIX_FMT_{suffix}");
+                            v4l2_map.get(&v4l2_name).copied()
+                        })
+                        .unwrap_or_else(|| {
+                            let suffix = fourcc_name.trim_start_matches("DRM_FORMAT_");
+                            let v4l2_name = format!("V4L2_PIX_FMT_{suffix}");
+                            panic!("missing DRM fourcc for {fourcc_name} (also tried {v4l2_name})")
+                        });
+                    if val["big_endian"].as_bool().unwrap_or(false) {
+                        fourcc |= 1u32 << 31;
+                    }
+                    let modifier = val["modifier"]
+                        .as_str()
+                        .and_then(|m| modifier_map.get(m).copied())
+                        .unwrap_or(0);
+                    out.push(FormatConst { name, fourcc, modifier });
+                }
+            }
+        }
+        out
+    }
+
+    fn build_drm_fourcc_map() -> HashMap<String, u32> {
+        let drm_path = "/usr/include/drm/drm_fourcc.h";
+        match std::fs::read_to_string(drm_path) {
+            Ok(header) => {
+                let drm_re =
+                    Regex::new(r"#define\s+(DRM_FORMAT_[A-Za-z0-9_]+)\s+fourcc_code(_be)?\(([^)]+)\)").unwrap();
+                let mut map = HashMap::new();
+                for caps in drm_re.captures_iter(&header) {
+                    let name = caps.get(1).unwrap().as_str().to_string();
+                    let be = caps.get(2).is_some();
+                    let args = caps.get(3).unwrap().as_str();
+                    let parts: Vec<u32> = args
+                        .split(',')
+                        .filter_map(|p| p.trim().trim_matches('\'').chars().next().map(|c| c as u32))
+                        .collect();
+                    if parts.len() != 4 {
+                        continue;
+                    }
+                    let mut fourcc = parts[0] | (parts[1] << 8) | (parts[2] << 16) | (parts[3] << 24);
+                    if be {
+                        fourcc |= 1u32 << 31;
+                    }
+                    map.insert(name, fourcc);
+                }
+                map
+            }
+            Err(err) => {
+                eprintln!("Warning: failed to read {drm_path}: {err}");
+                HashMap::new()
+            }
+        }
+    }
+
+    fn build_drm_modifier_map() -> HashMap<String, u64> {
+        let drm_path = "/usr/include/drm/drm_fourcc.h";
+        let mut map = HashMap::new();
+        let Ok(header) = std::fs::read_to_string(drm_path) else {
+            eprintln!("Warning: failed to read {drm_path} for modifiers");
+            return map;
+        };
+        const VENDOR_RE: &str = r"#define\s+DRM_FORMAT_MOD_VENDOR_([A-Za-z0-9_]+)\s+([0-9xXa-fA-F]+)";
+        const MOD_RE: &str = concat!(
+            r"#define\s+DRM_FORMAT_MOD_([A-Za-z0-9_]+)\s+fourcc_mod_code\(",
+            r"\s*([A-Za-z0-9_]+)\s*,\s*([0-9xXa-fA-F]+)\s*\)",
+        );
+        let vendor_re = Regex::new(VENDOR_RE).unwrap();
+        let mod_re = Regex::new(MOD_RE).unwrap();
+        let mut vendors = HashMap::new();
+        for caps in vendor_re.captures_iter(&header) {
+            let name = caps.get(1).unwrap().as_str().to_string();
+            let val_str = caps.get(2).unwrap().as_str();
+            let val = u64::from_str_radix(val_str.trim_start_matches("0x"), 16).unwrap_or(0);
+            vendors.insert(name, val);
+        }
+        for caps in mod_re.captures_iter(&header) {
+            let name = caps.get(1).unwrap().as_str().to_string();
+            let vendor = caps.get(2).unwrap().as_str();
+            let val_str = caps.get(3).unwrap().as_str();
+            let val = u64::from_str_radix(val_str.trim_start_matches("0x"), 16).unwrap_or(0);
+            let vendor_val = vendors.get(vendor).copied().unwrap_or(0);
+            let modifier = (vendor_val << 56) | val;
+            map.insert(format!("DRM_FORMAT_MOD_{name}"), modifier);
+        }
+        map
+    }
+
+    fn build_v4l2_fourcc_map() -> HashMap<String, u32> {
+        let videodev_path = "/usr/include/linux/videodev2.h";
+        match std::fs::read_to_string(videodev_path) {
+            Ok(header) => {
+                let v4l2_re =
+                    Regex::new(r"#define\s+(V4L2_PIX_FMT_[A-Za-z0-9_]+)\s+v4l2_fourcc(_be)?\(([^)]+)\)").unwrap();
+                let mut map = HashMap::new();
+                for caps in v4l2_re.captures_iter(&header) {
+                    let name = caps.get(1).unwrap().as_str().to_string();
+                    let be = caps.get(2).is_some();
+                    let args = caps.get(3).unwrap().as_str();
+                    let parts: Vec<u32> = args
+                        .split(',')
+                        .filter_map(|p| p.trim().trim_matches('\'').chars().next().map(|c| c as u32))
+                        .collect();
+                    if parts.len() != 4 {
+                        continue;
+                    }
+                    let mut fourcc = parts[0] | (parts[1] << 8) | (parts[2] << 16) | (parts[3] << 24);
+                    if be {
+                        fourcc |= 1u32 << 31;
+                    }
+                    map.insert(name, fourcc);
+                }
+                map
+            }
+            Err(err) => {
+                eprintln!("Warning: failed to read {videodev_path}: {err}");
+                HashMap::new()
+            }
+        }
+    }
+
+    fn parse_pixel_format_info(
+        formats_cpp: &str,
+        format_consts: &[FormatConst],
+        v4l2_map: &HashMap<String, u32>,
+    ) -> Vec<PixelFormatInfo> {
+        let entry_re =
+            Regex::new(r"(?s)\{\s*formats::(?P<name>\w+),\s*\{\s*(?P<body>.*?)\}\s*\}\s*,").expect("regex compile");
+        let bits_re = Regex::new(r"\.bitsPerPixel\s*=\s*([0-9]+)").unwrap();
+        let colour_re = Regex::new(r"ColourEncoding([A-Za-z]+)").unwrap();
+        let packed_re = Regex::new(r"\.packed\s*=\s*(true|false)").unwrap();
+        let ppg_re = Regex::new(r"\.pixelsPerGroup\s*=\s*([0-9]+)").unwrap();
+        const PLANES_RE: &str = concat!(
+            r"\.planes\s*=\s*\{\{\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,",
+            r"\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*,",
+            r"\s*\{\s*([0-9]+)\s*,\s*([0-9]+)\s*\}\s*\}\s*\}",
+        );
+        let planes_re = Regex::new(PLANES_RE).unwrap();
+        let v4l2_list_re = Regex::new(r"\.v4l2Formats\s*=\s*\{(?P<formats>[^}]*)\}").unwrap();
+        let v4l2_item_re = Regex::new(r"V4L2PixelFormat\(\s*(V4L2_PIX_FMT_[A-Za-z0-9_]+)\s*\)").unwrap();
+
+        let const_map: HashMap<_, _> = format_consts
+            .iter()
+            .map(|c| (c.name.clone(), (c.fourcc, c.modifier)))
+            .collect();
+
+        let mut entries = Vec::new();
+        for caps in entry_re.captures_iter(formats_cpp) {
+            let name = caps["name"].to_string();
+            let body = &caps["body"];
+            let (fourcc, modifier) = match const_map.get(&name) {
+                Some(v) => *v,
+                None => continue,
+            };
+            let bits_per_pixel = bits_re
+                .captures(body)
+                .and_then(|c| c.get(1))
+                .and_then(|m| m.as_str().parse::<u32>().ok())
+                .unwrap_or(0);
+            let colour_encoding = colour_re
+                .captures(body)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str())
+                .unwrap_or("RGB");
+            let colour_encoding = match colour_encoding {
+                "RGB" => 0u8,
+                "YUV" => 1u8,
+                "RAW" => 2u8,
+                _ => 0u8,
+            };
+            let packed = packed_re
+                .captures(body)
+                .and_then(|c| c.get(1))
+                .map(|m| m.as_str() == "true")
+                .unwrap_or(false);
+            let pixels_per_group = ppg_re
+                .captures(body)
+                .and_then(|c| c.get(1))
+                .and_then(|m| m.as_str().parse::<u32>().ok())
+                .unwrap_or(1);
+            let planes_caps = planes_re.captures(body);
+            let plane_vals: Vec<(u32, u32)> = planes_caps
+                .map(|p| {
+                    (1..=6)
+                        .filter_map(|idx| p.get(idx).and_then(|m| m.as_str().parse::<u32>().ok()))
+                        .collect::<Vec<_>>()
+                })
+                .unwrap_or_else(|| vec![0; 6])
+                .chunks(2)
+                .map(|c| (c.first().copied().unwrap_or(0), c.get(1).copied().unwrap_or(0)))
+                .collect();
+
+            let mut v4l2_formats: Vec<u32> = Vec::new();
+            if let Some(list_caps) = v4l2_list_re.captures(body) {
+                if let Some(list) = list_caps.name("formats") {
+                    for item in v4l2_item_re.captures_iter(list.as_str()) {
+                        let name = item.get(1).unwrap().as_str();
+                        if let Some(val) = v4l2_map.get(name) {
+                            v4l2_formats.push(*val);
+                        }
+                    }
+                }
+            }
+
+            entries.push(PixelFormatInfo {
+                name,
+                fourcc,
+                modifier,
+                bits_per_pixel,
+                colour_encoding,
+                packed,
+                pixels_per_group,
+                planes: plane_vals,
+                v4l2_formats,
+            });
+        }
+
+        entries
+    }
+
+    fn generate_pixel_format_info_rs(infos: &[PixelFormatInfo]) -> String {
+        let mut out = String::from(
+            r#"
+// Auto-generated from libcamera/src/libcamera/formats.cpp
+#[derive(Clone, Copy)]
+pub(crate) struct PixelFormatPlaneInfoData {
+    pub bytes_per_group: u32,
+    pub vertical_sub_sampling: u32,
+}
+
+#[derive(Clone, Copy)]
+pub(crate) struct PixelFormatInfoData {
+    pub name: &'static str,
+    pub fourcc: u32,
+    pub modifier: u64,
+    pub bits_per_pixel: u32,
+    pub colour_encoding: u8,
+    pub packed: bool,
+    pub pixels_per_group: u32,
+    pub planes: &'static [PixelFormatPlaneInfoData],
+    pub v4l2_formats: &'static [u32],
+}
+
+pub(crate) static PIXEL_FORMAT_INFO: &[PixelFormatInfoData] = &[
+"#,
+        );
+
+        for info in infos {
+            let planes: Vec<(u32, u32)> = (0..3)
+                .map(|idx| info.planes.get(idx).copied().unwrap_or((0, 0)))
+                .collect();
+            let v4l2_list = info
+                .v4l2_formats
+                .iter()
+                .map(|v| format!("0x{v:08x}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+
+            let _ = writeln!(
+                out,
+                "    PixelFormatInfoData {{ \
+                 name: \"{}\", fourcc: 0x{:08x}, modifier: 0x{:016x}, bits_per_pixel: {}, \
+                 colour_encoding: {}, packed: {}, pixels_per_group: {}, \
+                 planes: &[PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, \
+                 PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}, \
+                 PixelFormatPlaneInfoData {{ bytes_per_group: {}, vertical_sub_sampling: {} }}], \
+                 v4l2_formats: &[{}], \
+                 }},",
+                info.name,
+                info.fourcc,
+                info.modifier,
+                info.bits_per_pixel,
+                info.colour_encoding,
+                info.packed,
+                info.pixels_per_group,
+                planes[0].0,
+                planes[0].1,
+                planes[1].0,
+                planes[1].1,
+                planes[2].0,
+                planes[2].1,
+                v4l2_list,
+            );
+        }
+
+        out.push_str("];\n");
+        out
+    }
+
+    let drm_map = build_drm_fourcc_map();
+    let drm_modifier_map = build_drm_modifier_map();
+    let v4l2_map = build_v4l2_fourcc_map();
+
     for (version, data) in by_version.iter() {
         let output_dir = versioned_files.join(version.to_string());
         std::fs::create_dir_all(output_dir.as_path()).unwrap();
@@ -210,6 +563,15 @@ fn main() {
         std::fs::write(
             output_dir.join("properties.rs"),
             generate_rust::generate_controls_file(&properties, ControlsType::Property),
+        )
+        .unwrap();
+
+        println!("Parsing pixel formats for version {version}");
+        let format_consts = parse_format_consts(&data.formats_yaml, &drm_map, &drm_modifier_map, &v4l2_map);
+        let pf_info = parse_pixel_format_info(&data.formats_cpp, &format_consts, &v4l2_map);
+        std::fs::write(
+            output_dir.join("pixel_format_info.rs"),
+            generate_pixel_format_info_rs(&pf_info),
         )
         .unwrap();
     }
@@ -243,6 +605,8 @@ mod generate_rust {
         let inner = match t {
             ControlType::Bool => "bool",
             ControlType::Byte => "u8",
+            ControlType::Uint16 => "u16",
+            ControlType::Uint32 => "u32",
             ControlType::Int32 => "i32",
             ControlType::Int64 => "i64",
             ControlType::Float => "f32",
@@ -314,6 +678,13 @@ mod generate_rust {
                 u32::from(*self)
             }
             "#;
+        out += "    pub fn description(&self) -> &'static str {\n        match self {\n";
+        for ctrl in controls.iter() {
+            let desc = ctrl.description.replace('\\', "\\\\").replace('"', "\\\"");
+            out += &vendor_feature_gate(ctrl);
+            out += &format!("            {name}::{} => \"{}\",\n", ctrl.name, desc);
+        }
+        out += "        }\n    }\n";
         out += "}\n";
 
         let mut dyn_variants = String::new();

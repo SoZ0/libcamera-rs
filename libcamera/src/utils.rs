@@ -57,6 +57,12 @@ impl<T: UniquePtrTarget> UniquePtr<T> {
             ptr: NonNull::new(unsafe { T::ptr_new() }).unwrap(),
         }
     }
+
+    /// # Safety
+    /// Caller must ensure `ptr` was allocated by `T::ptr_new` and owns it.
+    pub unsafe fn from_raw(ptr: *mut T) -> Option<Self> {
+        NonNull::new(ptr).map(|p| Self { ptr: p })
+    }
 }
 
 impl<T: UniquePtrTarget> Default for UniquePtr<T> {
@@ -94,7 +100,7 @@ impl<T: UniquePtrTarget + core::fmt::Debug> core::fmt::Debug for UniquePtr<T> {
 #[inline]
 pub fn handle_result(ret: c_int) -> io::Result<()> {
     if ret < 0 {
-        Err(io::Error::from_raw_os_error(ret))
+        Err(io::Error::from_raw_os_error(-ret))
     } else {
         Ok(())
     }

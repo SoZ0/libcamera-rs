@@ -8,6 +8,8 @@
 #ifdef __cplusplus
 #include <libcamera/controls.h>
 
+typedef libcamera::ControlIdMap libcamera_control_id_map_t;
+
 struct libcamera_control_list_iter {
 	libcamera::ControlList *list;
 	libcamera::ControlList::iterator it;
@@ -22,13 +24,15 @@ struct libcamera_control_id_enumerators_iter {
     std::map<int32_t, std::string>::const_iterator current;
     std::map<int32_t, std::string>::const_iterator end;
 };
+struct libcamera_control_id_map_iter;
+typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
+typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
 
 typedef libcamera::ControlValue libcamera_control_value_t;
 typedef libcamera::ControlList libcamera_control_list_t;
 typedef struct libcamera_control_list_iter libcamera_control_list_iter_t;
 typedef struct libcamera_control_info_map_iter libcamera_control_info_map_iter_t;
 typedef libcamera::ControlInfoMap libcamera_control_info_map_t;
-typedef libcamera::ControlIdMap libcamera_control_id_map_t;
 typedef libcamera::ControlId libcamera_control_id_t;
 typedef libcamera::ControlInfo libcamera_control_info_t;
 
@@ -43,10 +47,9 @@ typedef struct libcamera_control_id libcamera_control_id_t;
 typedef struct libcamera_control_info libcamera_control_info_t;
 typedef struct libcamera_control_id_map libcamera_control_id_map_t;
 typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
+typedef struct libcamera_control_id_map_iter libcamera_control_id_map_iter_t;
 
 #endif
-
-typedef struct libcamera_control_id_enumerators_iter libcamera_control_id_enumerators_iter_t;
 
 enum libcamera_control_id_enum { libcamera_control_id_DUMMY };
 enum libcamera_property_id { libcamera_property_id_DUMMY };
@@ -70,6 +73,11 @@ enum libcamera_control_direction {
     LIBCAMERA_CONTROL_DIRECTION_IN  = (1 << 0),
     LIBCAMERA_CONTROL_DIRECTION_OUT = (1 << 1),
 };
+
+enum libcamera_control_merge_policy {
+    LIBCAMERA_CONTROL_MERGE_KEEP_EXISTING = 0,
+    LIBCAMERA_CONTROL_MERGE_OVERWRITE_EXISTING = 1,
+};
 // --- libcamera_control_id ---
 const libcamera_control_id_t *libcamera_control_from_id(enum libcamera_control_id_enum id);
 const char *libcamera_control_name_from_id(enum libcamera_control_id_enum id);
@@ -92,6 +100,13 @@ int32_t libcamera_control_id_enumerators_iter_key(const libcamera_control_id_enu
 const char *libcamera_control_id_enumerators_iter_value(const libcamera_control_id_enumerators_iter_t *iter);
 void libcamera_control_id_enumerators_iter_next(libcamera_control_id_enumerators_iter_t *iter);
 void libcamera_control_id_enumerators_iter_destroy(libcamera_control_id_enumerators_iter_t *iter);
+// --- libcamera_control_id_map_iter_t ---
+libcamera_control_id_map_iter_t *libcamera_control_id_map_iter_create(const libcamera_control_id_map_t *map);
+bool libcamera_control_id_map_iter_has_next(const libcamera_control_id_map_iter_t *iter);
+unsigned int libcamera_control_id_map_iter_key(const libcamera_control_id_map_iter_t *iter);
+const libcamera_control_id_t *libcamera_control_id_map_iter_value(const libcamera_control_id_map_iter_t *iter);
+void libcamera_control_id_map_iter_next(libcamera_control_id_map_iter_t *iter);
+void libcamera_control_id_map_iter_destroy(libcamera_control_id_map_iter_t *iter);
 
 // --- libcamera_property_id ---
 const char *libcamera_property_name_from_id(enum libcamera_property_id id);
@@ -99,9 +114,18 @@ enum libcamera_control_type libcamera_property_type_from_id(enum libcamera_prope
 
 // --- libcamera_control_list_t ---
 libcamera_control_list_t *libcamera_control_list_create();
+libcamera_control_list_t *libcamera_control_list_create_with_idmap(const libcamera_control_id_map_t *idmap);
+libcamera_control_list_t *libcamera_control_list_create_with_info_map(const libcamera_control_info_map_t *info_map);
 void libcamera_control_list_destroy(libcamera_control_list_t *list);
 const libcamera_control_value_t *libcamera_control_list_get(libcamera_control_list_t *list, enum libcamera_property_id id);
 void libcamera_control_list_set(libcamera_control_list_t *list, enum libcamera_property_id id, const libcamera_control_value_t *val);
+bool libcamera_control_list_contains(const libcamera_control_list_t *list, unsigned int id);
+void libcamera_control_list_clear(libcamera_control_list_t *list);
+size_t libcamera_control_list_size(const libcamera_control_list_t *list);
+bool libcamera_control_list_is_empty(const libcamera_control_list_t *list);
+void libcamera_control_list_merge(libcamera_control_list_t *list, const libcamera_control_list_t *other, enum libcamera_control_merge_policy policy);
+const libcamera_control_info_map_t *libcamera_control_list_info_map(const libcamera_control_list_t *list);
+const libcamera_control_id_map_t *libcamera_control_list_id_map(const libcamera_control_list_t *list);
 libcamera_control_list_iter_t *libcamera_control_list_iter(libcamera_control_list_t *list);
 
 // --- libcamera_control_list_iter_t ---
