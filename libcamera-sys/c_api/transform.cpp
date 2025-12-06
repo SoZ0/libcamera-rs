@@ -4,11 +4,15 @@
 extern "C" {
 
 static inline libcamera::Transform to_cpp(libcamera_transform_t t) {
-    return *reinterpret_cast<libcamera::Transform *>(&t);
+    libcamera::Transform result;
+    std::memcpy(&result, &t, sizeof(result));
+    return result;
 }
 
 static inline libcamera_transform_t from_cpp(const libcamera::Transform &t) {
-    return *reinterpret_cast<const libcamera_transform_t *>(&t);
+    libcamera_transform_t result;
+    std::memcpy(&result, &t, sizeof(result));
+    return result;
 }
 
 libcamera_transform_t libcamera_transform_identity() {
