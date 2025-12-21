@@ -464,7 +464,10 @@ extern "C" fn camera_request_completed_cb(ptr: *mut core::ffi::c_void, req: *mut
     let mut state = unsafe { &*(ptr as *const Mutex<ActiveCameraState<'_>>) }
         .lock()
         .unwrap();
-    let req = state.requests.remove(&req).unwrap();
+
+    let Some(req) = state.requests.remove(&req) else {
+        return;
+    };
 
     if let Some(cb) = &mut state.request_completed_cb {
         cb(req);
